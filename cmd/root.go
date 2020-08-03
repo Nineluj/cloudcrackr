@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/spf13/cobra"
 	log "github.com/visionmedia/go-cli-log"
 	"os"
@@ -9,6 +11,8 @@ import (
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
+
+var awsSession *session.Session
 
 var configFileName = ".cloudcrackr"
 var cfgFile string
@@ -24,17 +28,34 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+	PersistentPreRunE: setupAwsSession,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
+func setupAwsSession(cmd *cobra.Command, args []string) error {
+	var err error
+	awsSession, err = session.NewSessionWithOptions(session.Options{
+		Profile: viper.GetString("ProfileName"),
+		Config:  aws.Config{Region: aws.String(viper.GetString("Region"))},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if err := rootCmd.Execute(); err == nil {
+		os.Exit(0)
+	} else {
+		log.Error(err)
+		os.Exit(-1)
 	}
 }
 

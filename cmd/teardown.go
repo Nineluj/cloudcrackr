@@ -8,14 +8,8 @@ import (
 // teardownCmd represents the teardown command
 var teardownCmd = &cobra.Command{
 	Use:   "teardown",
-	Short: "Tear down the existing infrastructure",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: tearDown,
+	Short: "Tear down the existing infrastructure. Use conf clean to remove the configuration file.",
+	Run:   tearDown,
 }
 
 var force bool
@@ -30,7 +24,7 @@ func tearDown(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// TODO: remove S3 bucket, ECS images & containers, ...
+	// TODO: remove S3 bucket, ECS images & containers, IAM role last...
 }
 
 func init() {

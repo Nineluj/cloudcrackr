@@ -11,6 +11,16 @@ import (
 	"reflect"
 )
 
+// Config declared this way to force the presence of these values at runtime
+type config struct {
+	Region       string `instr:"The AWS region to use"`
+	ProfileName  string `instr:"The name of the profile to use (see ~/.aws/credentials)"`
+	S3BucketName string `instr:"The name of the S3 bucket to use."`
+	//JobTableName  string `instr:"The name of the table to use for active jobs. Avoid existing table names.'"`
+}
+
+var confFormat = config{}
+
 // configureCmd represents the configure command
 var configurationCmd = &cobra.Command{
 	Use:     "configuration",
@@ -52,16 +62,6 @@ func showConfig(_ *cobra.Command, _ []string) {
 		log.Info(key, "%s", viper.Get(key))
 	}
 }
-
-// Config declared this way to force the presence of these values at runtime
-type config struct {
-	Region       string `instr:"The AWS region to use"`
-	ProfileName  string `instr:"The name of the profile to use (see ~/.aws/credentials)"`
-	S3BucketName string `instr:"The name of the S3 bucket to use."`
-	//JobTableName  string `instr:"The name of the table to use for active jobs. Avoid existing table names.'"`
-}
-
-var confFormat = config{}
 
 func generateConfig() error {
 	confirm := utility.GetBoolean("Do you want to create a config now?")
