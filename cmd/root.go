@@ -110,6 +110,9 @@ func initConfig() {
 	// Verify that we have the necessary information
 
 	// Missing information
+	if getMissingConf() {
+		changesMade = true
+	}
 	// changesMade = true
 
 	// Write changes made

@@ -42,6 +42,8 @@ type Config struct {
 	JobTableName      string `instr:"The name of the table to use for active jobs. Avoid existing table names.'"`
 }
 
+var confFormat = Config{}
+
 func generateConfig() error {
 	confirm := utility.GetBoolean("Do you want to create a config now?")
 
@@ -50,8 +52,7 @@ func generateConfig() error {
 	}
 
 	// Necessary evil of reflect to make the config logic more elegant
-	newConfig := Config{}
-	v := reflect.TypeOf(newConfig)
+	v := reflect.TypeOf(confFormat)
 
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
@@ -61,4 +62,27 @@ func generateConfig() error {
 	}
 
 	return nil
+}
+
+func getMissingConf() bool {
+	fixedMissingConf := false
+	v := reflect.TypeOf(confFormat)
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+
+		if viper.Get(field.Name) == nil {
+			if !fixedMissingConf {
+				log.Info("Configuration", "%s", "Found missing configuration, please set these values")
+			}
+
+			fixedMissingConf = true
+
+			fmt.Println("> " + field.Tag.Get("instr"))
+			input := utility.GetInput(fmt.Sprintf("%s", field.Name))
+			viper.Set(field.Name, input)
+		}
+	}
+
+	return fixedMissingConf
 }
