@@ -56,6 +56,8 @@ func Upload(sess *session.Session, filePath, bucketName, key string) error {
 	}
 
 	// Upload the file to S3.
+	// could use custom reader to add progress info:
+	// https://github.com/aws/aws-sdk-go/blob/master/example/service/s3/putObjectWithProcess/putObjWithProcess.go
 	log.Info("Upload", "uploading file")
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),
@@ -70,4 +72,15 @@ func Upload(sess *session.Session, filePath, bucketName, key string) error {
 	log.Info("Upload", "File successfully uploaded")
 
 	return nil
+}
+
+func Delete(sess *session.Session, bucketName, key string) error {
+	client := s3.New(sess)
+
+	_, err := client.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+
+	return err
 }

@@ -23,17 +23,25 @@ var dictionaryListCmd = &cobra.Command{
 }
 
 var dictionaryAddCmd = &cobra.Command{
-	Use:       "add",
-	Aliases:   []string{"upload"},
-	Short:     "[file] [dictionary-alias]",
-	ValidArgs: nil,
-	Args:      cobra.ExactValidArgs(2),
-	RunE:      dictionaryAdd,
+	Use:     "add",
+	Aliases: []string{"upload"},
+	Short:   "[file] [dictionary-alias]",
+	Args:    cobra.ExactValidArgs(2),
+	RunE:    dictionaryAdd,
+}
+
+var dictionaryDeleteCmd = &cobra.Command{
+	Use:     "add",
+	Aliases: []string{"rm"},
+	Short:   "[dictionary-alias]",
+	Args:    cobra.ExactValidArgs(1),
+	RunE:    dictionaryDelete,
 }
 
 func init() {
 	dictionaryCmd.AddCommand(dictionaryAddCmd)
 	dictionaryCmd.AddCommand(dictionaryListCmd)
+	dictionaryCmd.AddCommand(dictionaryDeleteCmd)
 	rootCmd.AddCommand(dictionaryCmd)
 }
 
@@ -54,4 +62,10 @@ func dictionaryAdd(_ *cobra.Command, args []string) error {
 	dictionaryFullKey := DictionaryPrefix + args[1]
 
 	return storage.Upload(awsSession, args[0], globalCfg.S3BucketName, dictionaryFullKey)
+}
+
+func dictionaryDelete(_ *cobra.Command, args []string) error {
+	dictionaryFullKey := DictionaryPrefix + args[0]
+
+	return storage.Delete(awsSession, globalCfg.S3BucketName, dictionaryFullKey)
 }
