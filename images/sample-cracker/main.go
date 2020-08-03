@@ -24,7 +24,7 @@ func userPassCracker(username, hash string, dict []string, outputFile *os.File,
 	for _, word := range dict {
 		h := md5.New()
 		h.Write([]byte(word))
-		result := string(h.Sum(nil))
+		result := fmt.Sprintf("%x", h.Sum(nil))
 
 		if result == hash {
 			fileLock.Lock()
