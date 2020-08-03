@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	log "github.com/visionmedia/go-cli-log"
+	"os"
 	"reflect"
 )
 
@@ -18,13 +19,31 @@ var configurationCmd = &cobra.Command{
 }
 
 var configShowCmd = &cobra.Command{
-	Use:  "show",
-	Args: cobra.ExactArgs(0),
-	Run:  showConfig,
+	Use:   "show",
+	Short: "Show the current configuration settings",
+	Args:  cobra.ExactArgs(0),
+	Run:   showConfig,
+}
+
+var configCleanCmd = &cobra.Command{
+	Use:   "clean",
+	Short: "Removes the current configuration file",
+	Args:  cobra.ExactArgs(0),
+	Run:   configClean,
+}
+
+var configWhereCmd = &cobra.Command{
+	Use:   "where",
+	Short: "Shows the default configuration location",
+	Args:  cobra.ExactArgs(0),
+	Run:   configWhere,
 }
 
 func init() {
 	configurationCmd.AddCommand(configShowCmd)
+	configurationCmd.AddCommand(configCleanCmd)
+	configurationCmd.AddCommand(configWhereCmd)
+
 	rootCmd.AddCommand(configurationCmd)
 }
 
@@ -34,15 +53,15 @@ func showConfig(_ *cobra.Command, _ []string) {
 	}
 }
 
-type Config struct {
-	Region            string `instr:"The AWS region to use"`
-	ProfileName       string `instr:"The name of the profile to use (see ~/.aws/credentials)"`
-	PasswordTableName string `instr:"The name of the table to use for the password file list. Avoid existing table names.'"`
-	HashTableName     string `instr:"The name of the table to use for the hash file list. Avoid existing table names.'"`
-	JobTableName      string `instr:"The name of the table to use for active jobs. Avoid existing table names.'"`
+// Config declared this way to force the presence of these values at runtime
+type config struct {
+	Region       string `instr:"The AWS region to use"`
+	ProfileName  string `instr:"The name of the profile to use (see ~/.aws/credentials)"`
+	S3BucketName string `instr:"The name of the S3 bucket to use."`
+	//JobTableName  string `instr:"The name of the table to use for active jobs. Avoid existing table names.'"`
 }
 
-var confFormat = Config{}
+var confFormat = config{}
 
 func generateConfig() error {
 	confirm := utility.GetBoolean("Do you want to create a config now?")
@@ -65,8 +84,11 @@ func generateConfig() error {
 }
 
 func getMissingConf() bool {
+	conf := config{}
+	//reflectConfElem := reflect.ValueOf(conf).Elem()
+
 	fixedMissingConf := false
-	v := reflect.TypeOf(confFormat)
+	v := reflect.TypeOf(conf)
 
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
@@ -81,8 +103,33 @@ func getMissingConf() bool {
 			fmt.Println("> " + field.Tag.Get("instr"))
 			input := utility.GetInput(fmt.Sprintf("%s", field.Name))
 			viper.Set(field.Name, input)
+
+			// Set struct
+			//reflectConfElem.Field(i).Set(reflect.ValueOf(input))
 		}
 	}
 
 	return fixedMissingConf
+}
+
+func configWhere(c *cobra.Command, _ []string) {
+	if c.Flag("config").Value.String() != "" {
+		log.Error(errors.New("command doesn't work with custom config path"))
+		return
+	}
+
+	fmt.Println(defaultCfgPath)
+}
+
+func configClean(c *cobra.Command, _ []string) {
+	if c.Flag("config").Value.String() != "" {
+		log.Error(errors.New("command doesn't work with custom config path"))
+		return
+	}
+
+	err := os.Remove(defaultCfgPath)
+	if err != nil {
+		log.Error(err)
+	}
+
 }

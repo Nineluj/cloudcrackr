@@ -11,8 +11,8 @@ import (
 )
 
 var configFileName = ".cloudcrackr"
-
 var cfgFile string
+var defaultCfgPath string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -80,6 +80,7 @@ func initConfig() {
 		viper.SetConfigName(configFileName)
 
 		cfgPath = fmt.Sprintf("%s/%s.yaml", home, configFileName)
+		defaultCfgPath = cfgPath
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
