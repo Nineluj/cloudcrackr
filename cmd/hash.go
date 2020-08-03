@@ -1,36 +1,57 @@
 package cmd
 
 import (
+	"cloudcrackr/storage"
 	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
-// hashfileCmd represents the hashfile command
-var hashfileCmd = &cobra.Command{
-	Use:   "hashfile",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+const HashPrefix = "hash/"
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("hashfile called")
-	},
+// hashCmd represents the hash command
+var hashCmd = &cobra.Command{
+	Use:     "hash",
+	Aliases: []string{"h"},
+	Short:   "Manage the hash files that cloudcrackr has access to",
+}
+
+var hashListCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"l"},
+	Args:    cobra.ExactArgs(0),
+	Run:     hashList,
+}
+
+var hashAddCmd = &cobra.Command{
+	Use:       "add",
+	Aliases:   []string{"upload"},
+	Short:     "[file] [hash-alias]",
+	ValidArgs: nil,
+	Args:      cobra.ExactValidArgs(2),
+	RunE:      hashAdd,
 }
 
 func init() {
-	rootCmd.AddCommand(hashfileCmd)
+	hashCmd.AddCommand(hashAddCmd)
+	hashCmd.AddCommand(hashListCmd)
+	rootCmd.AddCommand(hashCmd)
+}
 
-	// Here you will define your flags and configuration settings.
+func hashList(_ *cobra.Command, _ []string) {
+	files, err := storage.ListFiles(awsSession, globalCfg.S3BucketName, HashPrefix)
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// hashfileCmd.PersistentFlags().String("foo", "", "A help for foo")
+	fmt.Printf("Found a total of [%d] files\n", len(files))
+	// Print out the files
+	for _, fn := range files {
+		fmt.Println(fn)
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// hashfileCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	_ = err
+}
+
+func hashAdd(_ *cobra.Command, args []string) error {
+	// Defines the full string that corresponds to the file's key in the S3 bucket
+	hashFullKey := HashPrefix + args[1]
+
+	return storage.Upload(awsSession, args[0], globalCfg.S3BucketName, hashFullKey)
 }

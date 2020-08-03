@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+var globalCfg config
 var awsSession *session.Session
 
 var configFileName = ".cloudcrackr"
@@ -28,13 +29,31 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	PersistentPreRunE: setupAwsSession,
+	PersistentPreRunE: preRun,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
-func setupAwsSession(cmd *cobra.Command, args []string) error {
+func preRun(cmd *cobra.Command, args []string) error {
+	err := setupAwsSession()
+	if err != nil {
+		return err
+	}
+
+	err = unmarshalConfig()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func unmarshalConfig() error {
+	return viper.Unmarshal(&globalCfg)
+}
+
+func setupAwsSession() error {
 	var err error
 	awsSession, err = session.NewSessionWithOptions(session.Options{
 		Profile: viper.GetString("ProfileName"),

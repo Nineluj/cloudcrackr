@@ -14,7 +14,7 @@ func New(sess *session.Session, bucketName string) error {
 	client := s3.New(sess)
 
 	// TODO: handle duplicate name error more gracefully
-	output, err := client.CreateBucket(
+	result, err := client.CreateBucket(
 		&s3.CreateBucketInput{
 			Bucket: aws.String(bucketName),
 		},
@@ -24,12 +24,29 @@ func New(sess *session.Session, bucketName string) error {
 		return err
 	}
 
-	_ = output
+	_ = result
 
 	return nil
 }
 
-func upload(sess *session.Session, key, filePath, bucketName string) error {
+func ListFiles(sess *session.Session, bucketName, prefix string) ([]s3.Object, error) {
+	client := s3.New(sess)
+
+	result, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(prefix),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(result)
+
+	return nil, nil
+}
+
+func Upload(sess *session.Session, filePath, bucketName, key string) error {
 	uploader := s3manager.NewUploader(sess)
 
 	f, err := os.Open(filePath)
@@ -40,7 +57,7 @@ func upload(sess *session.Session, key, filePath, bucketName string) error {
 
 	// Upload the file to S3.
 	log.Info("Upload", "uploading file")
-	result, err := uploader.Upload(&s3manager.UploadInput{
+	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(key),
 		Body:   f,
@@ -50,7 +67,7 @@ func upload(sess *session.Session, key, filePath, bucketName string) error {
 		return err
 	}
 
-	fmt.Printf("file uploaded to, %s\n", result.Location)
+	log.Info("Upload", "File successfully uploaded")
 
 	return nil
 }

@@ -3,7 +3,6 @@ package cmd
 import (
 	"cloudcrackr/storage"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // initCmd represents the init command
@@ -14,7 +13,7 @@ var initCmd = &cobra.Command{
 }
 
 func initInfra(cmd *cobra.Command, args []string) error {
-	err := storage.New(awsSession, viper.GetString("S3BucketName"))
+	err := storage.New(awsSession, globalCfg.S3BucketName)
 	if err != nil {
 		return err
 	}
