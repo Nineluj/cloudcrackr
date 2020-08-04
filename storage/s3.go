@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-func New(sess *session.Session, bucketName string) error {
+func CreateBucket(sess *session.Session, bucketName string) error {
 	client := s3.New(sess)
 
 	// TODO: handle duplicate name error more gracefully

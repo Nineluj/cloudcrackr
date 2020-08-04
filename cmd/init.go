@@ -13,7 +13,7 @@ var initCmd = &cobra.Command{
 }
 
 func initInfra(cmd *cobra.Command, args []string) error {
-	err := storage.New(awsSession, globalCfg.S3BucketName)
+	err := storage.CreateBucket(awsSession, globalCfg.S3BucketName)
 	if err != nil {
 		return err
 	}
