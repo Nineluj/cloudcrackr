@@ -1,5 +1,6 @@
-![logo](assets/logo.png)
 # Cloudcrackr
+<img width="220px" src="https://raw.githubusercontent.com/Nineluj/cloudcrackr/master/assets/logo.png" alt="logo"/>
+
 > Command Line Utility for cracking passwords on AWS
 
 ## Requirements
