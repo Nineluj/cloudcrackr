@@ -1,3 +1,4 @@
+![logo](assets/logo.png)
 # Cloudcrackr
 > Command Line Utility for cracking passwords on AWS
 
