@@ -73,7 +73,6 @@ func Execute() {
 	if err := rootCmd.Execute(); err == nil {
 		os.Exit(0)
 	} else {
-		log.Error(err)
 		os.Exit(-1)
 	}
 }

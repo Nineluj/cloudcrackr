@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cloudcrackr/repository"
 	"cloudcrackr/storage"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +19,10 @@ func initInfra(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	err = repository.CreateRepository(awsSession)
+	if err != nil {
+		return err
+	}
 	//
 
 	return nil

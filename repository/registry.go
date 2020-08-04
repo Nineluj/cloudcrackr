@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 )
 
-const RepositoryName = "cloudcrackr"
+const RepoName = "cloudcrackr"
 
 func CreateRepository(sess *session.Session) error {
 	client := ecr.New(sess)
@@ -22,7 +22,7 @@ func CreateRepository(sess *session.Session) error {
 			ScanOnPush: aws.Bool(false),
 		},
 		ImageTagMutability: nil,
-		RepositoryName:     aws.String(RepositoryName),
+		RepositoryName:     aws.String(RepoName),
 		Tags: []*ecr.Tag{
 			{
 				Key:   aws.String("service"),
@@ -31,10 +31,12 @@ func CreateRepository(sess *session.Session) error {
 		},
 	})
 
+	_ = result
+
 	return err
 }
 
 func createCrackingImage(sess *session.Session) {
-	client := ecr.New(sess)
+	//client := ecr.New(sess)
 
 }
