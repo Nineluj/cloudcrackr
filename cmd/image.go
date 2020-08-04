@@ -17,9 +17,10 @@ var imageCmd = &cobra.Command{
 }
 
 var imagePushCmd = &cobra.Command{
-	Use: "push",
+	Use:  "push",
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return repository.CreateImage(awsSession)
+		return repository.PushImage(awsSession, args[0])
 	},
 }
 
