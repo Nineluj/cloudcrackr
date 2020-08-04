@@ -116,9 +116,12 @@ func pushImage(client *dclient.Client, credentials string, imageRef string) erro
 	}
 
 	readCloser, err := client.ImagePush(context.Background(), imageRef, pushOptions)
-	defer func() {
-		_ = readCloser.Close()
-	}()
+
+	if err == nil {
+		defer func() {
+			_ = readCloser.Close()
+		}()
+	}
 
 	return err
 }
