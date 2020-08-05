@@ -18,6 +18,13 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
+)
+
+const (
+	TagKey           = "service"
+	TagValue         = "cloudcrackr"
+	TagLookupTimeout = 10
 )
 
 // Initiates a new repository on AWS that cloudcrackr can use
@@ -33,8 +40,8 @@ func createRepository(sess *session.Session, name string) error {
 		RepositoryName:     aws.String(name),
 		Tags: []*ecr.Tag{
 			{
-				Key:   aws.String("service"),
-				Value: aws.String("cloudcrackr"),
+				Key:   aws.String(TagKey),
+				Value: aws.String(TagValue),
 			},
 		},
 	})
@@ -52,6 +59,68 @@ func createRepository(sess *session.Session, name string) error {
 	return err
 }
 
+func collector(allRepos []*ecr.Repository, nTagCheckers int, recv <-chan tagCheckedRepository) (taggedRepoNames []string) {
+	// map for repos so that once we get responses we can find them in O(1) time
+	repoMap := make(map[string]*ecr.Repository)
+	for _, repo := range allRepos {
+		repoMap[*repo.RepositoryArn] = repo
+	}
+
+	nResponses := 0
+
+ListenLoop:
+	for {
+		select {
+		case res := <-recv:
+			nResponses++
+
+			if res.hasTag {
+				taggedRepoNames = append(taggedRepoNames, *repoMap[res.arn].RepositoryName)
+			}
+
+			if nResponses == nTagCheckers {
+				return
+			}
+		case <-time.After(time.Second * TagLookupTimeout):
+			log.Warn("Gave up on finding more repositories, time out")
+			break ListenLoop
+		}
+	}
+
+	return
+}
+
+type tagCheckedRepository struct {
+	arn    string
+	hasTag bool
+}
+
+func tagChecker(client *ecr.ECR, arn string, resp chan<- tagCheckedRepository) {
+	result, err := client.ListTagsForResource(&ecr.ListTagsForResourceInput{
+		ResourceArn: aws.String(arn),
+	})
+
+	if err != nil {
+		return
+	}
+
+	for _, tag := range result.Tags {
+		if *tag.Key == TagKey && *tag.Value == TagValue {
+			resp <- tagCheckedRepository{
+				arn:    arn,
+				hasTag: true,
+			}
+
+			return
+		}
+	}
+
+	resp <- tagCheckedRepository{
+		arn:    arn,
+		hasTag: false,
+	}
+}
+
 func ListImages(sess *session.Session) ([]string, error) {
 	client := ecr.New(sess)
 
@@ -61,13 +130,16 @@ func ListImages(sess *session.Session) ([]string, error) {
 		return nil, err
 	}
 
-	var imageList []string
-
+	repoChan := make(chan tagCheckedRepository)
+	nTagCheckers := len(result.Repositories)
 	for _, repo := range result.Repositories {
-		imageList = append(imageList, *repo.RepositoryName)
+		go tagChecker(client, *repo.RepositoryArn, repoChan)
 	}
 
-	return imageList, nil
+	repos := collector(result.Repositories, nTagCheckers, repoChan)
+	close(repoChan)
+
+	return repos, nil
 }
 
 // Don't need this afaik since docker takes base64 string directly

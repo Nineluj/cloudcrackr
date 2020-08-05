@@ -12,9 +12,6 @@ import (
 var imageCmd = &cobra.Command{
 	Use:   "image",
 	Short: "Handle the images available to cloudcrackr",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("image called")
-	},
 }
 
 var imagePushCmd = &cobra.Command{
