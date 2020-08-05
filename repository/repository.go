@@ -4,6 +4,7 @@ package repository
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,14 +14,14 @@ import (
 	"github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	log "github.com/visionmedia/go-cli-log"
+	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 )
 
-const RepoName = "cloudcrackr"
-
 // Initiates a new repository on AWS that cloudcrackr can use
-func CreateRepository(sess *session.Session) error {
+func createRepository(sess *session.Session, name string) error {
 	client := ecr.New(sess)
 
 	_, err := client.CreateRepository(&ecr.CreateRepositoryInput{
@@ -29,7 +30,7 @@ func CreateRepository(sess *session.Session) error {
 			ScanOnPush: aws.Bool(false),
 		},
 		ImageTagMutability: nil,
-		RepositoryName:     aws.String(RepoName),
+		RepositoryName:     aws.String(name),
 		Tags: []*ecr.Tag{
 			{
 				Key:   aws.String("service"),
@@ -54,11 +55,7 @@ func CreateRepository(sess *session.Session) error {
 func ListImages(sess *session.Session) ([]string, error) {
 	client := ecr.New(sess)
 
-	result, err := client.ListImages(&ecr.ListImagesInput{
-		// TODO: use specific registryID in case of >1 present?
-		RegistryId:     nil,
-		RepositoryName: aws.String(RepoName),
-	})
+	result, err := client.DescribeRepositories(&ecr.DescribeRepositoriesInput{})
 
 	if err != nil {
 		return nil, err
@@ -66,8 +63,8 @@ func ListImages(sess *session.Session) ([]string, error) {
 
 	var imageList []string
 
-	for _, img := range result.ImageIds {
-		imageList = append(imageList, img.String())
+	for _, repo := range result.Repositories {
+		imageList = append(imageList, *repo.RepositoryName)
 	}
 
 	return imageList, nil
@@ -116,12 +113,32 @@ func getECRDetails(sess *session.Session) (string, string, error) {
 	return endpointTrimmed, *authToken, nil
 }
 
-func pushImage(client *dclient.Client, credentials string, imageRef string) error {
-	// logic around how to use docker's client.ImagePush()
+func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
+	jsonBuf, err := json.Marshal(authConfig)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(jsonBuf), nil
+}
+
+func pushImage(client *dclient.Client, username, password, imageRef string) error {
+	registryAuth, err := encodeAuthToBase64(types.AuthConfig{
+		Username:      username,
+		Password:      password,
+		Auth:          "",
+		Email:         "",
+		ServerAddress: "",
+		IdentityToken: "",
+		RegistryToken: "",
+	})
+
+	if err != nil {
+		return err
+	}
 
 	// TODO: check tags?
 	pushOptions := types.ImagePushOptions{
-		RegistryAuth: credentials,
+		RegistryAuth: registryAuth,
 		// Not sure about these two?
 		All: false,
 		PrivilegeFunc: func() (string, error) {
@@ -131,6 +148,10 @@ func pushImage(client *dclient.Client, credentials string, imageRef string) erro
 	}
 
 	readCloser, err := client.ImagePush(context.Background(), imageRef, pushOptions)
+
+	//data, err := ioutil.ReadAll(readCloser)
+	//_ = data
+	io.Copy(os.Stdout, readCloser)
 
 	if err == nil {
 		defer func() {
@@ -147,7 +168,17 @@ func PushImage(sess *session.Session, imageId, imageName string) error {
 		return err
 	}
 
-	client, err := dclient.NewEnvClient()
+	client, err := dclient.NewClientWithOpts()
+	if err != nil {
+		return err
+	}
+
+	username, password, err := parseCredentials(&credentials)
+	if err != nil {
+		return err
+	}
+
+	err = createRepository(sess, imageName)
 	if err != nil {
 		return err
 	}
@@ -161,7 +192,7 @@ func PushImage(sess *session.Session, imageId, imageName string) error {
 		return err
 	}
 
-	err = pushImage(client, credentials, imgRef)
+	err = pushImage(client, username, password, imgRef)
 	if err != nil {
 		return err
 	}

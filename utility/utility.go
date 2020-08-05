@@ -25,3 +25,11 @@ func GetInput(prompt string) string {
 func GetBoolean(prompt string) bool {
 	return GetInput(fmt.Sprintf("%s [y/n] ", prompt)) == "y"
 }
+
+func Pluralize(word string, n int) string {
+	if n == 1 {
+		return word
+	}
+
+	return word + "s"
+}

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"cloudcrackr/repository"
+	"cloudcrackr/utility"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -32,7 +33,9 @@ var imageListCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		images, err := repository.ListImages(awsSession)
 
-		fmt.Printf("Found [%d] images\n", len(images))
+		imagesLen := len(images)
+
+		fmt.Printf("Found [%d] %v\n", imagesLen, utility.Pluralize("image", imagesLen))
 		for _, img := range images {
 			fmt.Printf("- %v\n", img)
 		}
