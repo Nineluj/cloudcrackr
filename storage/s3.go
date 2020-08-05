@@ -1,3 +1,4 @@
+// Provides functions for interacting with storage on Cloud
 package storage
 
 import (
@@ -10,11 +11,12 @@ import (
 	"os"
 )
 
+// Initiates the storage on AWS that cloudcrackr can use
 func CreateBucket(sess *session.Session, bucketName string) error {
 	client := s3.New(sess)
 
-	// TODO: handle duplicate name error more gracefully
-	result, err := client.CreateBucket(
+	// If the bucket exist no error is thrown
+	_, err := client.CreateBucket(
 		&s3.CreateBucketInput{
 			Bucket: aws.String(bucketName),
 		},
@@ -24,11 +26,11 @@ func CreateBucket(sess *session.Session, bucketName string) error {
 		return err
 	}
 
-	_ = result
-
 	return nil
 }
 
+// Lists the files available with the given prefix.
+// Useful to retrieve only the password or hash files
 func ListFiles(sess *session.Session, bucketName, prefix string) ([]s3.Object, error) {
 	client := s3.New(sess)
 
@@ -46,6 +48,8 @@ func ListFiles(sess *session.Session, bucketName, prefix string) ([]s3.Object, e
 	return nil, nil
 }
 
+// Upload a file to the remote storage from the local storage.
+// Key represents the location of the uploaded file in the remote storage.
 func Upload(sess *session.Session, filePath, bucketName, key string) error {
 	uploader := s3manager.NewUploader(sess)
 
@@ -74,6 +78,7 @@ func Upload(sess *session.Session, filePath, bucketName, key string) error {
 	return nil
 }
 
+// Delete a file from the remote storage
 func Delete(sess *session.Session, bucketName, key string) error {
 	client := s3.New(sess)
 

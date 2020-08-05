@@ -1,3 +1,4 @@
+// Package to allow user interaction through CLI
 package cmd
 
 import (

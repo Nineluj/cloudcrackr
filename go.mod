@@ -13,4 +13,5 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.4.0
 	github.com/visionmedia/go-cli-log v0.0.0-20151214173634-914d1b040b20
+	golang.org/x/tools v0.0.0-20200804234916-fec4f28ebb08 // indirect
 )

@@ -1,3 +1,4 @@
+// Provides functions for interacting with the Container Registry
 package repository
 
 import (
@@ -18,6 +19,7 @@ import (
 
 const RepoName = "cloudcrackr"
 
+// Initiates a new repository on AWS that cloudcrackr can use
 func CreateRepository(sess *session.Session) error {
 	client := ecr.New(sess)
 
@@ -91,8 +93,6 @@ func parseCredentials(creds *string) (string, string, error) {
 func getECRDetails(sess *session.Session) (string, string, error) {
 	client := ecr.New(sess)
 
-	// This process is done using docker commands
-	// Extract the credentials that we can give to docker to push
 	result, err := client.GetAuthorizationToken(&ecr.GetAuthorizationTokenInput{})
 	if err != nil {
 		return "", "", err
