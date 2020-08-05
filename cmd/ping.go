@@ -9,8 +9,8 @@ import (
 
 // pingCmd represents the ping command
 var pingCmd = &cobra.Command{
-	Use:   "ping",
-	Short: "Useless command, to be deleted!",
+	Use:   "ping <times>",
+	Short: "Ping. Useless command, to be deleted!",
 	Args:  cobra.ExactArgs(1),
 	RunE:  ping,
 }

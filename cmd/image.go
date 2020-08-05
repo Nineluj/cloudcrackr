@@ -17,10 +17,11 @@ var imageCmd = &cobra.Command{
 }
 
 var imagePushCmd = &cobra.Command{
-	Use:  "push",
-	Args: cobra.ExactArgs(1),
+	Use:   "push <imageId> <name>",
+	Short: "Push the image ID to the cloudcrackr ECR repository to make it available",
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return repository.PushImage(awsSession, args[0])
+		return repository.PushImage(awsSession, args[0], args[1])
 	},
 }
 

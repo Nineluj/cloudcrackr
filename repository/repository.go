@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
+	log "github.com/visionmedia/go-cli-log"
 	"io/ioutil"
 	"strings"
 )
@@ -86,19 +87,33 @@ func parseCredentials(creds *string) (string, string, error) {
 	return username, password, nil
 }
 
-func getECRCredentials(sess *session.Session) (string, error) {
+// Gets the authorization token and endpoint for ECR
+func getECRDetails(sess *session.Session) (string, string, error) {
 	client := ecr.New(sess)
 
 	// This process is done using docker commands
 	// Extract the credentials that we can give to docker to push
 	result, err := client.GetAuthorizationToken(&ecr.GetAuthorizationTokenInput{})
 	if err != nil {
-		return "", err
+		return "", "", err
+	}
+
+	if len(result.AuthorizationData) > 1 {
+		// TODO: look into this
+		return "", "", errors.New("received more than one authorization credentials")
+	} else if len(result.AuthorizationData) == 0 {
+		return "", "", errors.New("couldn't retrieve credentials for ECR")
+	}
+
+	endpoint := *result.AuthorizationData[0].ProxyEndpoint
+	endpointTrimmed := strings.TrimPrefix(endpoint, "https://")
+	if len(endpoint) == len(endpointTrimmed) {
+		return "", "", errors.New("expected ECR endpoint to contain https prefix")
 	}
 
 	authToken := result.AuthorizationData[0].AuthorizationToken
 
-	return *authToken, nil
+	return endpointTrimmed, *authToken, nil
 }
 
 func pushImage(client *dclient.Client, credentials string, imageRef string) error {
@@ -126,8 +141,8 @@ func pushImage(client *dclient.Client, credentials string, imageRef string) erro
 	return err
 }
 
-func PushImage(sess *session.Session, imgRef string) error {
-	credentials, err := getECRCredentials(sess)
+func PushImage(sess *session.Session, imageId, imageName string) error {
+	domain, credentials, err := getECRDetails(sess)
 	if err != nil {
 		return err
 	}
@@ -137,5 +152,24 @@ func PushImage(sess *session.Session, imgRef string) error {
 		return err
 	}
 
-	return pushImage(client, credentials, imgRef)
+	// alternative: use client.RegistryLogin() for auth?
+
+	imgRef := fmt.Sprintf("%v/%v:latest", domain, imageName)
+	// We need to tag the image with the repo tag before pushing
+	err = tagImage(client, imageId, imgRef)
+	if err != nil {
+		return err
+	}
+
+	err = pushImage(client, credentials, imgRef)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Image", "Image successfully pushed to %v", imgRef)
+	return nil
+}
+
+func tagImage(client *dclient.Client, imageId, imgRef string) error {
+	return client.ImageTag(context.Background(), imageId, imgRef)
 }
