@@ -121,15 +121,48 @@ func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(jsonBuf), nil
 }
 
+// TODO: Would like to use the below code but only Stdout works at the moment
+type StatusMessage struct {
+	Status          string `json:"status"`
+	ProgressDetails struct {
+		Current int `json:"current"`
+		Total   int `json:"total"`
+	} `json:"progressDetail"`
+	ProgressBar string `json:"progress"`
+	Id          string `json:"id"`
+}
+
+type prettyStatusWriter struct{}
+
+func (psw *prettyStatusWriter) Write(p []byte) (n int, err error) {
+	n = len(p)
+	if n == 0 {
+		return
+	}
+
+	var status StatusMessage
+
+	err = json.Unmarshal(p, &status)
+
+	if err != nil {
+		return n, err
+	}
+
+	if status.Id != "" {
+		log.Info(status.Status+" - "+status.Id,
+			fmt.Sprintf("%v/%v [%v%%]",
+				status.ProgressDetails.Current, status.ProgressDetails.Total, 0))
+	} else {
+		log.Info("Upload", status.Status)
+	}
+
+	return
+}
+
 func pushImage(client *dclient.Client, username, password, imageRef string) error {
 	registryAuth, err := encodeAuthToBase64(types.AuthConfig{
-		Username:      username,
-		Password:      password,
-		Auth:          "",
-		Email:         "",
-		ServerAddress: "",
-		IdentityToken: "",
-		RegistryToken: "",
+		Username: username,
+		Password: password,
 	})
 
 	if err != nil {
@@ -148,16 +181,15 @@ func pushImage(client *dclient.Client, username, password, imageRef string) erro
 	}
 
 	readCloser, err := client.ImagePush(context.Background(), imageRef, pushOptions)
-
-	//data, err := ioutil.ReadAll(readCloser)
-	//_ = data
-	io.Copy(os.Stdout, readCloser)
-
 	if err == nil {
 		defer func() {
 			_ = readCloser.Close()
 		}()
+	} else {
+		return err
 	}
+
+	_, err = io.Copy(os.Stdin, readCloser)
 
 	return err
 }
