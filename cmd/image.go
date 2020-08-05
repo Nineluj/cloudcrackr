@@ -25,7 +25,24 @@ var imagePushCmd = &cobra.Command{
 	},
 }
 
+var imageListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List images available for cracking",
+	Args:  cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		images, err := repository.ListImages(awsSession)
+
+		fmt.Printf("Found [%d] images\n", len(images))
+		for _, img := range images {
+			fmt.Printf("- %v\n", img)
+		}
+
+		return err
+	},
+}
+
 func init() {
+	imageCmd.AddCommand(imageListCmd)
 	imageCmd.AddCommand(imagePushCmd)
 	rootCmd.AddCommand(imageCmd)
 }
