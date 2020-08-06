@@ -1,51 +1,52 @@
-/*
-Copyright © 2020 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
-	"fmt"
-
+	"cloudcrackr/runner"
 	"github.com/spf13/cobra"
+	"path/filepath"
+)
+
+var (
+	useGpu, uploadHash bool
 )
 
 // crackCmd represents the crack command
 var crackCmd = &cobra.Command{
-	Use:   "crack",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:  "crack <image> <password> <file>",
+	Args: cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		imageName := args[0]
+		dictionary := args[1]
+		hash := args[2]
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("crack called")
+		if uploadHash {
+			hashFileBase := filepath.Base(hash)
+			err := hashAdd(&cobra.Command{}, []string{hash, hashFileBase})
+			if err != nil {
+				return err
+			}
+
+			hash = hashFileBase
+		}
+
+		return runner.Crack(
+			awsSession,
+			imageName,
+			globalCfg.S3BucketName,
+			DictionaryPrefix+dictionary,
+			HashPrefix+hash,
+			useGpu,
+		)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(crackCmd)
 
-	// Here you will define your flags and configuration settings.
+	crackCmd.Flags().BoolVar(&useGpu, "use-gpu",
+		false, "Use a GPU for the cracking")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// crackCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// crackCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Haven't decided on behavior: should hash file be deleted after?
+	crackCmd.Flags().BoolVar(&uploadHash, "local-hash",
+		false, "upload the hash file specified")
 }

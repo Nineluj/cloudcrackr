@@ -26,10 +26,10 @@ func getTags() []*ecs.Tag {
 	}
 }
 
-func DeployContainer(sess *session.Session, imageURI string, gpuReq bool) error {
+func DeployContainer(sess *session.Session, imageURI string, useGpu bool) error {
 	client := ecs.New(sess)
 
-	taskArn, err := registerTask(client, imageURI, gpuReq)
+	taskArn, err := registerTask(client, imageURI, useGpu)
 	if err != nil {
 		return err
 	}
@@ -76,16 +76,16 @@ func runTask(client *ecs.ECS, taskArn string) error {
 	return nil
 }
 
-func registerTask(client *ecs.ECS, imageURI string, gpuReq bool) (string, error) {
+func registerTask(client *ecs.ECS, imageURI string, useGpu bool) (string, error) {
 	// TODO: set this properly
 	imageName := "TODO"
 
 	var resourceReqs []*ecs.ResourceRequirement
-	if gpuReq {
+	if useGpu {
 		resourceReqs = []*ecs.ResourceRequirement{
 			{
 				Type:  aws.String("GPU"),
-				Value: aws.String("0"),
+				Value: aws.String("1"),
 			},
 		}
 	}

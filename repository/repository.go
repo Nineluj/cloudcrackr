@@ -62,15 +62,8 @@ func createRepository(sess *session.Session, name string) error {
 	return err
 }
 
+// Verifies the presence of the imageName and returns its URI
 func GetImageURI(sess *session.Session, imageName string) (string, error) {
-	domain, _, err := getECRDetails(sess)
-
-	if err != nil {
-		return "", err
-	}
-
-	imgRef := fmt.Sprintf("%v/%v:latest", domain, imageName)
-
 	client := ecr.New(sess)
 	result, err := client.DescribeImages(&ecr.DescribeImagesInput{
 		RepositoryName: aws.String(imageName),
@@ -83,6 +76,14 @@ func GetImageURI(sess *session.Session, imageName string) (string, error) {
 	if len(result.ImageDetails) == 0 {
 		return "", errors.New("couldn't find imageName")
 	}
+
+	domain, _, err := getECRDetails(sess)
+
+	if err != nil {
+		return "", err
+	}
+
+	imgRef := fmt.Sprintf("%v/%v:latest", domain, imageName)
 
 	return imgRef, nil
 }

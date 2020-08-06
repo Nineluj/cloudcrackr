@@ -89,3 +89,41 @@ func Delete(sess *session.Session, bucketName, key string) error {
 
 	return err
 }
+
+// Stat checks if the file name is present
+func stat(client *s3.S3, bucketName, key string, errChan chan<- error) {
+	// Getting ACL is faster than getting the whole object
+	_, err := client.GetObjectAcl(&s3.GetObjectAclInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+
+	errChan <- err
+}
+
+func Stat(sess *session.Session, bucketName, key string) error {
+	client := s3.New(sess)
+	errChan := make(chan error)
+
+	go stat(client, bucketName, key, errChan)
+	return <-errChan
+}
+
+func StatMultiple(sess *session.Session, bucketName string, keyList ...string) error {
+	keysLen := len(keyList)
+	client := s3.New(sess)
+	errChan := make(chan error)
+
+	for _, key := range keyList {
+		go stat(client, bucketName, key, errChan)
+	}
+
+	for i := 0; i < keysLen; i++ {
+		res := <-errChan
+		if res != nil {
+			return res
+		}
+	}
+
+	return nil
+}
