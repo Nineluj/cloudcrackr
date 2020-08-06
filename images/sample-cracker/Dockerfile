@@ -23,11 +23,12 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /root/
 
-# Copy the Pre-built binary file from the previous stage
+# Copy the Pre-built binary file from the previous stage and the bash script
 COPY --from=builder /app/main .
+COPY execute.sh .
 
-# Expose port 8080 to the outside world
-EXPOSE 8080
+# Make the script executable
+RUN chmod +x execute.sh
 
 # Command to run the executable
-CMD ["./main"]
+RUN execute.sh

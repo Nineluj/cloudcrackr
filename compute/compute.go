@@ -8,6 +8,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	"time"
+)
+
+const (
+	ProcPrefix = "proc/"
 )
 
 const (
@@ -26,10 +31,16 @@ func getTags() []*ecs.Tag {
 	}
 }
 
-func DeployContainer(sess *session.Session, imageURI string, useGpu bool) error {
+func DeployContainer(sess *session.Session, imageURI, bucketName, dictionary, hash string, useGpu bool) error {
 	client := ecs.New(sess)
+	// Get the date+time to create a unique identifier for this deployment
+	deployId := time.Now().String()[:19]
 
-	taskArn, err := registerTask(client, imageURI, useGpu)
+	// Create environment variables for task to bootstrap running
+	envVars := getEnvVars(bucketName, dictionary, hash, ProcPrefix+deployId+"/")
+
+	//
+	taskArn, err := registerTask(client, imageURI, envVars, useGpu)
 	if err != nil {
 		return err
 	}
@@ -45,6 +56,25 @@ func DeployContainer(sess *session.Session, imageURI string, useGpu bool) error 
 	//}
 
 	return nil
+}
+
+func getEnvVars(bucketName, dictionary, hash, output string) []*ecs.KeyValuePair {
+	base := "s3://" + bucketName + "/"
+
+	return []*ecs.KeyValuePair{
+		{
+			Name:  aws.String("CCR_DICTIONARY"),
+			Value: aws.String(base + dictionary),
+		},
+		{
+			Name:  aws.String("CCR_HASH"),
+			Value: aws.String(base + hash),
+		},
+		{
+			Name:  aws.String("CCR_OUTPUT"),
+			Value: aws.String(base + output + "output"),
+		},
+	}
 }
 
 func runTask(client *ecs.ECS, taskArn string) error {
@@ -76,10 +106,7 @@ func runTask(client *ecs.ECS, taskArn string) error {
 	return nil
 }
 
-func registerTask(client *ecs.ECS, imageURI string, useGpu bool) (string, error) {
-	// TODO: set this properly
-	imageName := "TODO"
-
+func registerTask(client *ecs.ECS, imageURI string, envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
 	var resourceReqs []*ecs.ResourceRequirement
 	if useGpu {
 		resourceReqs = []*ecs.ResourceRequirement{
@@ -94,7 +121,7 @@ func registerTask(client *ecs.ECS, imageURI string, useGpu bool) (string, error)
 		RequiresCompatibilities: []*string{aws.String(ecs.CompatibilityEc2)},
 		// Needed for proper IAM usage
 		ExecutionRoleArn: nil,
-		Family:           aws.String("ccr-" + imageName),
+		Family:           aws.String(imageURI),
 		// Bridge should be fine
 		NetworkMode:          aws.String(ecs.NetworkModeBridge),
 		PidMode:              nil,
@@ -112,15 +139,13 @@ func registerTask(client *ecs.ECS, imageURI string, useGpu bool) (string, error)
 				Cpu:                   nil,
 				DisableNetworking:     nil,
 				DockerSecurityOptions: nil,
-				Environment:           nil,
-				EnvironmentFiles:      nil,
+				Environment:           envVars,
 				// Marks this container as essential and will cease task when it stops
 				Essential: aws.Bool(true),
 				// TODO: add logs
-				FirelensConfiguration: nil,
-				HealthCheck:           nil,
-				Hostname:              nil,
-				Image:                 aws.String(imageURI),
+				HealthCheck: nil,
+				Hostname:    nil,
+				Image:       aws.String(imageURI),
 
 				Memory:            aws.Int64(MemoryHardLimit),
 				MemoryReservation: aws.Int64(MemorySoftLimit),

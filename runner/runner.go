@@ -23,7 +23,7 @@ func Crack(sess *session.Session, imageName, bucketName, dictionary, hash string
 	}
 
 	// Deploy image
-	err = compute.DeployContainer(sess, imageURI, useGpu)
+	err = compute.DeployContainer(sess, imageURI, bucketName, dictionary, hash, useGpu)
 	if err != nil {
 		return err
 	}
