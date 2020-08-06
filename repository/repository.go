@@ -2,6 +2,7 @@
 package repository
 
 import (
+	"cloudcrackr/constants"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -22,10 +23,17 @@ import (
 )
 
 const (
-	TagKey           = "service"
-	TagValue         = "cloudcrackr"
 	TagLookupTimeout = 10
 )
+
+func getTags() []*ecr.Tag {
+	return []*ecr.Tag{
+		{
+			Key:   aws.String(constants.TagKey),
+			Value: aws.String(constants.TagValue),
+		},
+	}
+}
 
 // Initiates a new repository on AWS that cloudcrackr can use
 func createRepository(sess *session.Session, name string) error {
@@ -38,12 +46,7 @@ func createRepository(sess *session.Session, name string) error {
 		},
 		ImageTagMutability: nil,
 		RepositoryName:     aws.String(name),
-		Tags: []*ecr.Tag{
-			{
-				Key:   aws.String(TagKey),
-				Value: aws.String(TagValue),
-			},
-		},
+		Tags:               getTags(),
 	})
 
 	if err != nil {
@@ -105,7 +108,7 @@ func tagChecker(client *ecr.ECR, arn string, resp chan<- tagCheckedRepository) {
 	}
 
 	for _, tag := range result.Tags {
-		if *tag.Key == TagKey && *tag.Value == TagValue {
+		if *tag.Key == constants.TagKey && *tag.Value == constants.TagValue {
 			resp <- tagCheckedRepository{
 				arn:    arn,
 				hasTag: true,
