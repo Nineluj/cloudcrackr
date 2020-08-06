@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"cloudcrackr/storage"
+	"cloudcrackr/utility"
 	"fmt"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 const HashPrefix = "hash/"
@@ -19,7 +21,7 @@ var hashListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"l"},
 	Args:    cobra.ExactArgs(0),
-	Run:     hashList,
+	RunE:    hashList,
 }
 
 var hashAddCmd = &cobra.Command{
@@ -37,16 +39,20 @@ func init() {
 	rootCmd.AddCommand(hashCmd)
 }
 
-func hashList(_ *cobra.Command, _ []string) {
+func hashList(_ *cobra.Command, _ []string) error {
 	files, err := storage.ListFiles(awsSession, globalCfg.S3BucketName, HashPrefix)
 
-	fmt.Printf("Found a total of [%d] files\n", len(files))
-	// Print out the files
-	for _, fn := range files {
-		fmt.Println(fn)
+	if err != nil {
+		return err
 	}
 
-	_ = err
+	fmt.Printf("Found a total of [%d] %v\n", len(files), utility.Pluralize("file", len(files)))
+	// Print out the files
+	for _, fn := range files {
+		fmt.Println("-", strings.TrimLeft(*fn.Key, HashPrefix))
+	}
+
+	return nil
 }
 
 func hashAdd(_ *cobra.Command, args []string) error {

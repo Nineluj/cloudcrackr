@@ -2,7 +2,6 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -31,7 +30,7 @@ func CreateBucket(sess *session.Session, bucketName string) error {
 
 // Lists the files available with the given prefix.
 // Useful to retrieve only the password or hash files
-func ListFiles(sess *session.Session, bucketName, prefix string) ([]s3.Object, error) {
+func ListFiles(sess *session.Session, bucketName, prefix string) ([]*s3.Object, error) {
 	client := s3.New(sess)
 
 	result, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
@@ -43,9 +42,7 @@ func ListFiles(sess *session.Session, bucketName, prefix string) ([]s3.Object, e
 		return nil, err
 	}
 
-	fmt.Println(result)
-
-	return nil, nil
+	return result.Contents, nil
 }
 
 // Upload a file to the remote storage from the local storage.

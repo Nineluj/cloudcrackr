@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"cloudcrackr/storage"
+	"cloudcrackr/utility"
 	"fmt"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 const DictionaryPrefix = "dictionary/"
@@ -19,7 +21,7 @@ var dictionaryListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"l"},
 	Args:    cobra.ExactArgs(0),
-	Run:     dictionaryList,
+	RunE:    dictionaryList,
 }
 
 var dictionaryAddCmd = &cobra.Command{
@@ -45,16 +47,20 @@ func init() {
 	rootCmd.AddCommand(dictionaryCmd)
 }
 
-func dictionaryList(_ *cobra.Command, _ []string) {
+func dictionaryList(_ *cobra.Command, _ []string) error {
 	files, err := storage.ListFiles(awsSession, globalCfg.S3BucketName, DictionaryPrefix)
 
-	fmt.Printf("Found a total of [%d] files\n", len(files))
-	// Print out the files
-	for _, fn := range files {
-		fmt.Println(fn)
+	if err != nil {
+		return err
 	}
 
-	_ = err
+	fmt.Printf("Found a total of [%d] %v\n", len(files), utility.Pluralize("file", len(files)))
+	// Print out the files
+	for _, fn := range files {
+		fmt.Println("-", strings.TrimLeft(*fn.Key, DictionaryPrefix))
+	}
+
+	return nil
 }
 
 func dictionaryAdd(_ *cobra.Command, args []string) error {
