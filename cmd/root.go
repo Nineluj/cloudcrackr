@@ -24,16 +24,13 @@ var defaultCfgPath string
 var rootCmd = &cobra.Command{
 	Use:   "cloudcrackr",
 	Short: "Facilitate password cracking using AWS",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Long: `Cloudcrackr is a CLI based application for cracking password hashes
+on the cloud using AWS and Docker.`,
+	// TODO: Add more information here
 	PersistentPreRunE: preRun,
 }
 
-func preRun(cmd *cobra.Command, args []string) error {
+func preRun(_ *cobra.Command, _ []string) error {
 	err := setupAwsSession()
 	if err != nil {
 		return err

@@ -12,8 +12,9 @@ var (
 
 // crackCmd represents the crack command
 var crackCmd = &cobra.Command{
-	Use:  "crack <image> <password> <file>",
-	Args: cobra.ExactArgs(3),
+	Use:   "crack <image> <password> <file>",
+	Short: "Launches the cracking instance",
+	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		imageName := args[0]
 		dictionary := args[1]
