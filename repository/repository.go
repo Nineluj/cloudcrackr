@@ -62,6 +62,31 @@ func createRepository(sess *session.Session, name string) error {
 	return err
 }
 
+func GetImageURI(sess *session.Session, imageName string) (string, error) {
+	domain, _, err := getECRDetails(sess)
+
+	if err != nil {
+		return "", err
+	}
+
+	imgRef := fmt.Sprintf("%v/%v:latest", domain, imageName)
+
+	client := ecr.New(sess)
+	result, err := client.DescribeImages(&ecr.DescribeImagesInput{
+		RepositoryName: aws.String(imageName),
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(result.ImageDetails) == 0 {
+		return "", errors.New("couldn't find imageName")
+	}
+
+	return imgRef, nil
+}
+
 func collector(allRepos []*ecr.Repository, nTagCheckers int, recv <-chan tagCheckedRepository) (taggedRepoNames []string) {
 	// map for repos so that once we get responses we can find them in O(1) time
 	repoMap := make(map[string]*ecr.Repository)
@@ -127,6 +152,8 @@ func tagChecker(client *ecr.ECR, arn string, resp chan<- tagCheckedRepository) {
 func ListImages(sess *session.Session) ([]string, error) {
 	client := ecr.New(sess)
 
+	// TODO: should use result and nextToken to check if there were >100 results
+	// another call should be made
 	result, err := client.DescribeRepositories(&ecr.DescribeRepositoriesInput{})
 
 	if err != nil {
@@ -289,8 +316,6 @@ func PushImage(sess *session.Session, imageId, imageName string) error {
 	if err != nil {
 		return err
 	}
-
-	// alternative: use client.RegistryLogin() for auth?
 
 	imgRef := fmt.Sprintf("%v/%v:latest", domain, imageName)
 	// We need to tag the image with the repo tag before pushing

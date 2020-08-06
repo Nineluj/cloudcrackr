@@ -26,15 +26,10 @@ func getTags() []*ecs.Tag {
 	}
 }
 
-func DeployContainer(sess *session.Session, gpuReq bool) error {
-	/*
-		Process:
-		1- Set up Task definition
-		2- Run task
-	*/
+func DeployContainer(sess *session.Session, imageURI string, gpuReq bool) error {
 	client := ecs.New(sess)
 
-	taskArn, err := registerTask(client, gpuReq)
+	taskArn, err := registerTask(client, imageURI, gpuReq)
 	if err != nil {
 		return err
 	}
@@ -44,7 +39,10 @@ func DeployContainer(sess *session.Session, gpuReq bool) error {
 		return err
 	}
 
-	// Deregister task? client.DeregisterTaskDefinition()
+	//err = deregisterTask(client, taskArn)
+	//if err != nil {
+	//	return err
+	//}
 
 	return nil
 }
@@ -78,7 +76,7 @@ func runTask(client *ecs.ECS, taskArn string) error {
 	return nil
 }
 
-func registerTask(client *ecs.ECS, gpuReq bool) (string, error) {
+func registerTask(client *ecs.ECS, imageURI string, gpuReq bool) (string, error) {
 	// TODO: set this properly
 	imageName := "TODO"
 
@@ -111,7 +109,6 @@ func registerTask(client *ecs.ECS, gpuReq bool) (string, error) {
 				EntryPoint: nil,
 
 				//
-
 				Cpu:                   nil,
 				DisableNetworking:     nil,
 				DockerSecurityOptions: nil,
@@ -123,7 +120,7 @@ func registerTask(client *ecs.ECS, gpuReq bool) (string, error) {
 				FirelensConfiguration: nil,
 				HealthCheck:           nil,
 				Hostname:              nil,
-				Image:                 nil,
+				Image:                 aws.String(imageURI),
 
 				Memory:            aws.Int64(MemoryHardLimit),
 				MemoryReservation: aws.Int64(MemorySoftLimit),
@@ -161,4 +158,20 @@ func registerTask(client *ecs.ECS, gpuReq bool) (string, error) {
 	}
 
 	return *result.TaskDefinition.TaskDefinitionArn, nil
+}
+
+func deregisterTask(client *ecs.ECS, taskArn string) error {
+	result, err := client.DeregisterTaskDefinition(&ecs.DeregisterTaskDefinitionInput{
+		TaskDefinition: aws.String(taskArn),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if taskArn != *result.TaskDefinition.TaskDefinitionArn {
+		return errors.New("wrong task was de-registered")
+	}
+
+	return nil
 }
