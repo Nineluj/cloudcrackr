@@ -4,22 +4,43 @@ import (
 	"cloudcrackr/repository"
 	"cloudcrackr/utility"
 	"fmt"
+	log "github.com/visionmedia/go-cli-log"
 
 	"github.com/spf13/cobra"
 )
 
 // imageCmd represents the image command
 var imageCmd = &cobra.Command{
-	Use:   "image",
-	Short: "Handle the images available to cloudcrackr",
+	Use:     "image",
+	Aliases: []string{"img"},
+	Short:   "Handle the images available to cloudcrackr",
 }
 
+// Command that creates a new repository if needed (when it doesn't already exist)
+// and pushes the image on your local machine
 var imagePushCmd = &cobra.Command{
 	Use:   "push <imageId> <name>",
 	Short: "Push the image ID to the cloudcrackr ECR repository to make it available",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return repository.PushImage(awsSession, args[0], args[1])
+	},
+}
+
+// The wording on these functions is a bit confusing. Since images are contained in distinct
+// repositories (that are in the same registry), imageDelete is deleting the registry and not the
+// single image
+var imageDeleteCmd = &cobra.Command{
+	Use:     "delete <name>",
+	Aliases: []string{"rm", "del"},
+	Short:   "Deletes the image with the given name",
+	Args:    cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := repository.DeleteImageRepository(awsSession, args[0])
+		if err == nil {
+			log.Info("Image", "Successfully removed image")
+		}
+		return err
 	},
 }
 
@@ -42,6 +63,7 @@ var imageListCmd = &cobra.Command{
 }
 
 func init() {
+	imageCmd.AddCommand(imageDeleteCmd)
 	imageCmd.AddCommand(imageListCmd)
 	imageCmd.AddCommand(imagePushCmd)
 	rootCmd.AddCommand(imageCmd)

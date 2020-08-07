@@ -297,6 +297,17 @@ func pushImage(client *dclient.Client, username, password, imageRef string) erro
 	return err
 }
 
+func DeleteImageRepository(sess *session.Session, imageName string) error {
+	client := ecr.New(sess)
+
+	_, err := client.DeleteRepository(&ecr.DeleteRepositoryInput{
+		Force:          aws.Bool(true),
+		RepositoryName: aws.String(imageName),
+	})
+
+	return err
+}
+
 func PushImage(sess *session.Session, imageId, imageName string) error {
 	domain, credentials, err := getECRDetails(sess)
 	if err != nil {
