@@ -19,7 +19,8 @@ var hashCmd = &cobra.Command{
 
 var hashListCmd = &cobra.Command{
 	Use:     "list",
-	Aliases: []string{"l"},
+	Short:   "List hash files available for cracking",
+	Aliases: []string{"ls"},
 	Args:    cobra.ExactArgs(0),
 	RunE:    hashList,
 }

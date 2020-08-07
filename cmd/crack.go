@@ -32,6 +32,7 @@ var crackCmd = &cobra.Command{
 
 		return runner.Crack(
 			awsSession,
+			globalCfg.ClusterName,
 			imageName,
 			globalCfg.S3BucketName,
 			DictionaryPrefix+dictionary,

@@ -25,6 +25,15 @@ const (
 	MemoryHardLimit = 512
 )
 
+var (
+	// Settings that need to be enabled to allow tag forwarding to work properly
+	EnabledSettings = [...]string{
+		ecs.SettingNameServiceLongArnFormat,
+		ecs.SettingNameTaskLongArnFormat,
+		ecs.SettingNameContainerInstanceLongArnFormat,
+	}
+)
+
 func getTags() []*ecs.Tag {
 	return []*ecs.Tag{
 		{
@@ -48,15 +57,35 @@ func getDeployId(imageURI string) (string, string, error) {
 		t.Year(), t.Month(), t.Day(),
 		t.Hour(), t.Minute(), t.Second())
 
-	return deployId + parts[0], parts[0], nil
+	return deployId + "-" + parts[0][1:], parts[0][1:], nil
 }
 
-func createCluster() {
+func CreateCluster(sess *session.Session, clusterName string) error {
 	// TODO: seems to create IAM role?
-	// client.CreateCluster()
+	client := ecs.New(sess)
+
+	// Settings need to be set to allow tag propagation with ECS.
+	// This only needs to be done once per account per region (once for cloudcrackr)
+	for _, setting := range EnabledSettings {
+		_, err := client.PutAccountSetting(&ecs.PutAccountSettingInput{
+			Name:  aws.String(setting),
+			Value: aws.String("enabled"),
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err := client.CreateCluster(&ecs.CreateClusterInput{
+		ClusterName: aws.String(clusterName),
+		Tags:        getTags(),
+	})
+
+	return err
 }
 
-func DeployContainer(sess *session.Session, imageURI, bucketName, dictionary, hash string, useGpu bool) error {
+func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, dictionary, hash string, useGpu bool) error {
 	client := ecs.New(sess)
 
 	deployId, imageName, err := getDeployId(imageURI)
@@ -68,7 +97,7 @@ func DeployContainer(sess *session.Session, imageURI, bucketName, dictionary, ha
 	// Extract last part of Image URI
 
 	// Create environment variables for task to bootstrap running
-	envVars := getEnvVars(bucketName, dictionary, hash, ProcPrefix+deployId+"/")
+	envVars := getEnvVars(bucketName, dictionary, hash, ProcPrefix+deployId)
 
 	//
 	taskArn, err := registerTask(client, imageURI, deployId, imageName, envVars, useGpu)
@@ -76,7 +105,7 @@ func DeployContainer(sess *session.Session, imageURI, bucketName, dictionary, ha
 		return err
 	}
 
-	err = runTask(client, taskArn, deployId)
+	err = runTask(client, clusterName, taskArn, deployId)
 	if err != nil {
 		return err
 	}
@@ -92,6 +121,7 @@ func DeployContainer(sess *session.Session, imageURI, bucketName, dictionary, ha
 func getEnvVars(bucketName, dictionary, hash, output string) []*ecs.KeyValuePair {
 	base := "s3://" + bucketName + "/"
 
+	// These could also be written to a file and passed using EnvironmentFile
 	return []*ecs.KeyValuePair{
 		{
 			Name:  aws.String("CCR_DICTIONARY"),
@@ -103,21 +133,23 @@ func getEnvVars(bucketName, dictionary, hash, output string) []*ecs.KeyValuePair
 		},
 		{
 			Name:  aws.String("CCR_OUTPUT"),
-			Value: aws.String(base + output + "output"),
+			Value: aws.String(base + output),
 		},
 	}
 }
 
-func runTask(client *ecs.ECS, taskArn, deployId string) error {
+func runTask(client *ecs.ECS, clusterName, taskArn, deployId string) error {
 	result, err := client.RunTask(&ecs.RunTaskInput{
-		Cluster:              aws.String("default"),
-		Count:                aws.Int64(1),
-		EnableECSManagedTags: aws.Bool(true),
-		LaunchType:           aws.String(ecs.LaunchTypeEc2),
+		Cluster:        aws.String(clusterName),
+		TaskDefinition: aws.String(taskArn),
+		Count:          aws.Int64(1),
+		LaunchType:     aws.String(ecs.LaunchTypeEc2),
+		ReferenceId:    aws.String(deployId),
+
+		// Tag related
 		PropagateTags:        aws.String(ecs.PropagateTagsTaskDefinition),
-		ReferenceId:          aws.String(deployId),
+		EnableECSManagedTags: aws.Bool(true),
 		Tags:                 getTags(),
-		TaskDefinition:       aws.String(taskArn),
 	})
 
 	if err != nil {

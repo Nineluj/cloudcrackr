@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
-func Crack(sess *session.Session, imageName, bucketName, dictionary, hash string, useGpu bool) error {
+func Crack(sess *session.Session, clusterName, imageName, bucketName, dictionary, hash string, useGpu bool) error {
 	// Retrieve info about image
 	imageURI, err := repository.GetImageURI(sess, imageName)
 	if err != nil {
@@ -22,7 +22,7 @@ func Crack(sess *session.Session, imageName, bucketName, dictionary, hash string
 	}
 
 	// Deploy image
-	err = compute.DeployContainer(sess, imageURI, bucketName, dictionary, hash, useGpu)
+	err = compute.DeployContainer(sess, clusterName, imageURI, bucketName, dictionary, hash, useGpu)
 	if err != nil {
 		return err
 	}

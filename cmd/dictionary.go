@@ -19,7 +19,8 @@ var dictionaryCmd = &cobra.Command{
 
 var dictionaryListCmd = &cobra.Command{
 	Use:     "list",
-	Aliases: []string{"l"},
+	Short:   "List dictionaries available for cracking",
+	Aliases: []string{"ls"},
 	Args:    cobra.ExactArgs(0),
 	RunE:    dictionaryList,
 }

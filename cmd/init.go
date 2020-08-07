@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"cloudcrackr/compute"
 	"cloudcrackr/storage"
 	"github.com/spf13/cobra"
+	log "github.com/visionmedia/go-cli-log"
 )
 
 // initCmd represents the init command
@@ -13,7 +15,7 @@ var initCmd = &cobra.Command{
 	RunE: initInfra,
 }
 
-func initInfra(cmd *cobra.Command, args []string) error {
+func initInfra(_ *cobra.Command, _ []string) error {
 	err := storage.CreateBucket(awsSession, globalCfg.S3BucketName)
 	if err != nil {
 		return err
@@ -25,6 +27,13 @@ func initInfra(cmd *cobra.Command, args []string) error {
 	//	return err
 	//}
 	//
+
+	err = compute.CreateCluster(awsSession, globalCfg.ClusterName)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Initialization", "Complete")
 
 	return nil
 }

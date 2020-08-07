@@ -28,6 +28,8 @@ var rootCmd = &cobra.Command{
 on the cloud using AWS and Docker.`,
 	// TODO: Add more information here
 	PersistentPreRunE: preRun,
+	SilenceUsage:      true,
+	SilenceErrors:     true,
 }
 
 func preRun(_ *cobra.Command, _ []string) error {
@@ -68,6 +70,7 @@ func Execute() {
 	if err := rootCmd.Execute(); err == nil {
 		os.Exit(0)
 	} else {
+		log.Error(err)
 		os.Exit(-1)
 	}
 }

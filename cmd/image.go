@@ -45,9 +45,10 @@ var imageDeleteCmd = &cobra.Command{
 }
 
 var imageListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List images available for cracking",
-	Args:  cobra.ExactArgs(0),
+	Use:     "list",
+	Short:   "List images available for cracking",
+	Aliases: []string{"ls"},
+	Args:    cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		images, err := repository.ListImages(awsSession)
 
