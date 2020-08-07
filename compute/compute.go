@@ -115,7 +115,7 @@ func runTask(client *ecs.ECS, taskArn, deployId string) error {
 		EnableECSManagedTags: aws.Bool(true),
 		LaunchType:           aws.String(ecs.LaunchTypeEc2),
 		PropagateTags:        aws.String(ecs.PropagateTagsTaskDefinition),
-		ReferenceId:          aws.String(deployId), // TODO: what is this?
+		ReferenceId:          aws.String(deployId),
 		Tags:                 getTags(),
 		TaskDefinition:       aws.String(taskArn),
 	})

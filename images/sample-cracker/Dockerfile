@@ -20,11 +20,10 @@ RUN go build -o main .
 FROM alpine:latest
 
 # Get the required packages to run the executable script
-RUN apk --no-cache add ca-certificates
-RUN apk --no-cache add python py-pip
+RUN apk --no-cache add python3 py-pip
 RUN pip install awscli
 
-WORKDIR /root/
+WORKDIR /app/main
 
 # Copy the Pre-built binary file from the previous stage and the bash script
 COPY --from=builder /app/main .
@@ -34,4 +33,4 @@ COPY execute.sh .
 RUN chmod +x execute.sh
 
 # Command to run the executable
-RUN execute.sh
+CMD ["/root/execute.sh"]
