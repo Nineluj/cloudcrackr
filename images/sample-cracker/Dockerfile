@@ -19,7 +19,10 @@ RUN go build -o main .
 ######## Start a new stage from scratch #######
 FROM alpine:latest
 
+# Get the required packages to run the executable script
 RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add python py-pip
+RUN pip install awscli
 
 WORKDIR /root/
 

@@ -5,9 +5,12 @@ package compute
 import (
 	"cloudcrackr/constants"
 	"errors"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -31,21 +34,49 @@ func getTags() []*ecs.Tag {
 	}
 }
 
+func getDeployId(imageURI string) (string, string, error) {
+	uri, err := url.Parse("https://" + imageURI)
+	if err != nil {
+		return "", "", err
+	}
+
+	parts := strings.SplitN(uri.Path, ":", 2)
+
+	// Get the date+time to create a unique identifier for this deployment
+	t := time.Now()
+	deployId := fmt.Sprintf("%d%02d%02dT%02d%02d%02d",
+		t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second())
+
+	return deployId + parts[0], parts[0], nil
+}
+
+func createCluster() {
+	// TODO: seems to create IAM role?
+	// client.CreateCluster()
+}
+
 func DeployContainer(sess *session.Session, imageURI, bucketName, dictionary, hash string, useGpu bool) error {
 	client := ecs.New(sess)
-	// Get the date+time to create a unique identifier for this deployment
-	deployId := time.Now().String()[:19]
+
+	deployId, imageName, err := getDeployId(imageURI)
+	if err != nil {
+		return err
+	}
+
+	// ...
+	// Extract last part of Image URI
 
 	// Create environment variables for task to bootstrap running
 	envVars := getEnvVars(bucketName, dictionary, hash, ProcPrefix+deployId+"/")
 
 	//
-	taskArn, err := registerTask(client, imageURI, envVars, useGpu)
+	taskArn, err := registerTask(client, imageURI, deployId, imageName, envVars, useGpu)
 	if err != nil {
 		return err
 	}
 
-	err = runTask(client, taskArn)
+	err = runTask(client, taskArn, deployId)
 	if err != nil {
 		return err
 	}
@@ -77,18 +108,14 @@ func getEnvVars(bucketName, dictionary, hash, output string) []*ecs.KeyValuePair
 	}
 }
 
-func runTask(client *ecs.ECS, taskArn string) error {
+func runTask(client *ecs.ECS, taskArn, deployId string) error {
 	result, err := client.RunTask(&ecs.RunTaskInput{
 		Cluster:              aws.String("default"),
 		Count:                aws.Int64(1),
 		EnableECSManagedTags: aws.Bool(true),
 		LaunchType:           aws.String(ecs.LaunchTypeEc2),
-		NetworkConfiguration: nil,
-		Overrides:            nil,
-		PlacementConstraints: nil,
-		PlacementStrategy:    nil,
 		PropagateTags:        aws.String(ecs.PropagateTagsTaskDefinition),
-		ReferenceId:          nil, // TODO: what is this?
+		ReferenceId:          aws.String(deployId), // TODO: what is this?
 		Tags:                 getTags(),
 		TaskDefinition:       aws.String(taskArn),
 	})
@@ -106,7 +133,7 @@ func runTask(client *ecs.ECS, taskArn string) error {
 	return nil
 }
 
-func registerTask(client *ecs.ECS, imageURI string, envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
+func registerTask(client *ecs.ECS, imageURI, deployId, imageName string, envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
 	var resourceReqs []*ecs.ResourceRequirement
 	if useGpu {
 		resourceReqs = []*ecs.ResourceRequirement{
@@ -119,61 +146,42 @@ func registerTask(client *ecs.ECS, imageURI string, envVars []*ecs.KeyValuePair,
 
 	result, err := client.RegisterTaskDefinition(&ecs.RegisterTaskDefinitionInput{
 		RequiresCompatibilities: []*string{aws.String(ecs.CompatibilityEc2)},
+		Family:                  aws.String(imageName),
+
+		Tags: getTags(),
+
 		// Needed for proper IAM usage
 		ExecutionRoleArn: nil,
-		Family:           aws.String(imageURI),
-		// Bridge should be fine
-		NetworkMode:          aws.String(ecs.NetworkModeBridge),
-		PidMode:              nil,
-		PlacementConstraints: nil,
-		Tags:                 getTags(),
-		TaskRoleArn:          nil,
+		TaskRoleArn:      nil,
 
 		ContainerDefinitions: []*ecs.ContainerDefinition{
 			{
-				// Main params
-				Command:    nil,
-				EntryPoint: nil,
+				// -- Main params
+				Image: aws.String(imageURI),
+				Name:  aws.String(deployId),
+				// We use these environment variables to tell the host where
+				// it can download the files from on S3 and where it should
+				// upload the results after it's done
+				Environment: envVars,
 
-				//
-				Cpu:                   nil,
-				DisableNetworking:     nil,
-				DockerSecurityOptions: nil,
-				Environment:           envVars,
-				// Marks this container as essential and will cease task when it stops
-				Essential: aws.Bool(true),
-				// TODO: add logs
-				HealthCheck: nil,
-				Hostname:    nil,
-				Image:       aws.String(imageURI),
-
+				// -- Resources for container
+				Cpu:               aws.Int64(10),
 				Memory:            aws.Int64(MemoryHardLimit),
 				MemoryReservation: aws.Int64(MemorySoftLimit),
-				// Probably not useful for storage gateway
-				MountPoints: nil,
-				Name:        nil,
-				// Likely not needed
-				PortMappings: nil,
-				// Might be needed in some cases
-				Privileged: nil,
-
-				// Might be required for bash file
-				PseudoTerminal: aws.Bool(true),
-				Interactive:    nil,
-
-				ReadonlyRootFilesystem: aws.Bool(false),
-				RepositoryCredentials:  nil,
 				// Define GPU usage here
 				ResourceRequirements: resourceReqs,
-				// Might be needed to pass info used to mount Storage Gateway
-				Secrets: nil,
 				// Could tweak kernel parameters to speed up container speeds
 				SystemControls: nil,
 				User:           nil,
-				// Maybe I can plug in Storage Gateway here?
-				VolumesFrom: nil,
-				// Equivalent of docker run's workdir
-				WorkingDirectory: nil,
+
+				// -- Misc
+				// Marks this container as essential and will cease task when it stops
+				Essential: aws.Bool(true),
+				// Might be needed in some cases
+				Privileged: nil,
+				// Might be required for bash file
+				PseudoTerminal: aws.Bool(true),
+				Interactive:    nil,
 			},
 		},
 	})

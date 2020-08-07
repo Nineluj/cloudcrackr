@@ -5,7 +5,6 @@ import (
 	"cloudcrackr/compute"
 	"cloudcrackr/repository"
 	"cloudcrackr/storage"
-	"errors"
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
@@ -28,5 +27,5 @@ func Crack(sess *session.Session, imageName, bucketName, dictionary, hash string
 		return err
 	}
 
-	return errors.New("not implemented")
+	return nil
 }

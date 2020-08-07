@@ -7,3 +7,5 @@ aws s3 cp "$CCR_HASH" /app/main/hash.txt
 /app/main
 
 aws s3 cp /app/main/output "$CCR_OUTPUT"
+
+poweroff
