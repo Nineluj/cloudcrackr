@@ -1,7 +1,9 @@
-# Cloudcrackr
-<img height="220px" src="https://raw.githubusercontent.com/Nineluj/cloudcrackr/master/assets/banner.png" alt="logo"/>
+<img src="https://raw.githubusercontent.com/Nineluj/cloudcrackr/master/assets/banner.png" alt="logo"/>
 
-> Command Line Utility for cracking passwords on AWS
+Cloudcrackr is a command line tool orchestrating password cracking on AWS using Docker containers and ECS.
+
+This project is in active development but feel free to open up an issue or 
+contact me if you have any questions or want to get involved.
 
 ## Requirements
 * AWS account with configured profile on your local machine
