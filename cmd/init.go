@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"cloudcrackr/compute"
+	"cloudcrackr/iam"
 	"cloudcrackr/storage"
 	"github.com/spf13/cobra"
 	log "github.com/visionmedia/go-cli-log"
@@ -29,6 +30,11 @@ func initInfra(_ *cobra.Command, _ []string) error {
 	//
 
 	err = compute.CreateCluster(awsSession, globalCfg.ClusterName)
+	if err != nil {
+		return err
+	}
+
+	err = iam.SetupIAM(awsSession, globalCfg.IAMRoleNamePath)
 	if err != nil {
 		return err
 	}

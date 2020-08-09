@@ -1,9 +1,9 @@
-// Package for handling compute for cloudcrackr. Uses EC2 over fargate since
-// while Fargate provides easier management, it does not allow for file system mounting at this moment
+// Package for handling compute for cloudcrackr
 package compute
 
 import (
 	"cloudcrackr/constants"
+	"cloudcrackr/iam"
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
@@ -19,10 +19,10 @@ const (
 )
 
 const (
-	// Amount of memory at which the system will try to minimize additional usage
-	MemorySoftLimit = 256
-	// Amount of memory at which the system will shut off the instance
-	MemoryHardLimit = 512
+	// Memory allocated for the instance
+	memoryLimit = "0.5GB"
+	// vCPUs allocated for the instance
+	allocatedVCpus = ".25 vCPU"
 )
 
 var (
@@ -99,8 +99,14 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 	// Create environment variables for task to bootstrap running
 	envVars := getEnvVars(bucketName, dictionary, hash, ProcPrefix+deployId)
 
+	// Get the IAM role arn for the task
+	ecsTaskRoleArn, err := iam.GetECSRoleArn(sess)
+	if err != nil {
+		return err
+	}
+
 	//
-	taskArn, err := registerTask(client, imageURI, deployId, imageName, envVars, useGpu)
+	taskArn, err := registerTask(client, ecsTaskRoleArn, imageURI, deployId, imageName, envVars, useGpu)
 	if err != nil {
 		return err
 	}
@@ -146,6 +152,16 @@ func runTask(client *ecs.ECS, clusterName, taskArn, deployId string) error {
 		LaunchType:     aws.String(ecs.LaunchTypeEc2),
 		ReferenceId:    aws.String(deployId),
 
+		// Not doing anything with the VPC but need to set this up in order
+		// to run a Fargate container
+		NetworkConfiguration: &ecs.NetworkConfiguration{
+			AwsvpcConfiguration: &ecs.AwsVpcConfiguration{
+				AssignPublicIp: aws.String(ecs.AssignPublicIpDisabled),
+				SecurityGroups: nil,
+				Subnets:        []*string{aws.String("127.0.0.1/32")},
+			},
+		},
+
 		// Tag related
 		PropagateTags:        aws.String(ecs.PropagateTagsTaskDefinition),
 		EnableECSManagedTags: aws.Bool(true),
@@ -165,26 +181,31 @@ func runTask(client *ecs.ECS, clusterName, taskArn, deployId string) error {
 	return nil
 }
 
-func registerTask(client *ecs.ECS, imageURI, deployId, imageName string, envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
-	var resourceReqs []*ecs.ResourceRequirement
-	if useGpu {
-		resourceReqs = []*ecs.ResourceRequirement{
-			{
-				Type:  aws.String("GPU"),
-				Value: aws.String("1"),
-			},
-		}
-	}
+func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName string, envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
+	//var resourceReqs []*ecs.ResourceRequirement
+	//if useGpu {
+	//	resourceReqs = []*ecs.ResourceRequirement{
+	//		{
+	//			Type:  aws.String("GPU"),
+	//			Value: aws.String("1"),
+	//		},
+	//	}
+	//}
 
 	result, err := client.RegisterTaskDefinition(&ecs.RegisterTaskDefinitionInput{
-		RequiresCompatibilities: []*string{aws.String(ecs.CompatibilityEc2)},
+		RequiresCompatibilities: []*string{aws.String(ecs.CompatibilityFargate)},
 		Family:                  aws.String(imageName),
 
 		Tags: getTags(),
 
 		// Needed for proper IAM usage
-		ExecutionRoleArn: nil,
+		ExecutionRoleArn: aws.String(ecsTaskRoleArn),
 		TaskRoleArn:      nil,
+
+		// -- Resources for task
+		Cpu:         aws.String(allocatedVCpus),
+		Memory:      aws.String(memoryLimit),
+		NetworkMode: aws.String(ecs.NetworkModeAwsvpc),
 
 		ContainerDefinitions: []*ecs.ContainerDefinition{
 			{
@@ -196,12 +217,8 @@ func registerTask(client *ecs.ECS, imageURI, deployId, imageName string, envVars
 				// upload the results after it's done
 				Environment: envVars,
 
-				// -- Resources for container
-				Cpu:               aws.Int64(10),
-				Memory:            aws.Int64(MemoryHardLimit),
-				MemoryReservation: aws.Int64(MemorySoftLimit),
 				// Define GPU usage here
-				ResourceRequirements: resourceReqs,
+				//ResourceRequirements: resourceReqs,
 				// Could tweak kernel parameters to speed up container speeds
 				SystemControls: nil,
 				User:           nil,

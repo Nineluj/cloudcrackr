@@ -14,11 +14,11 @@ import (
 // Config declared this way to force the presence of these values at runtime
 type config struct {
 	// Could extend this with "optional" fields
-	Region       string `instr:"The AWS region to use"`
-	ProfileName  string `instr:"The name of the profile to use (see ~/.aws/credentials)"`
-	S3BucketName string `instr:"The name of the S3 bucket to use."`
-	ClusterName  string `instr:"The name of the cluster to use for ECS"`
-	//JobTableName  string `instr:"The name of the table to use for active jobs. Avoid existing table names.'"`
+	Region          string `instr:"The AWS region to use"`
+	ProfileName     string `instr:"The name of the profile to use (see ~/.aws/credentials)"`
+	S3BucketName    string `instr:"The name of the S3 bucket to use."`
+	ClusterName     string `instr:"The name of the cluster to use for ECS"`
+	IAMRoleNamePath string `instr:"Prefix for IAM role names"`
 }
 
 var cfgFormat = config{}
@@ -74,6 +74,9 @@ func generateConfig() error {
 
 	// Necessary evil of reflect to make the config logic more elegant
 	v := reflect.TypeOf(cfgFormat)
+
+	fmt.Println("The resources will be created by running init, please do use already existing" +
+		" resource names")
 
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
