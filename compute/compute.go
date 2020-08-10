@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
+	log "github.com/visionmedia/go-cli-log"
 	"net/url"
 	"strings"
 	"time"
@@ -101,7 +102,8 @@ func getClusterArn(client *ecs.ECS, clusterName string) (string, error) {
 	return *result.Clusters[0].ClusterArn, nil
 }
 
-func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, dictionary, hash string, useGpu bool) error {
+func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, dictionary, hash string,
+	useGpu bool) error {
 	client := ecs.New(sess)
 
 	deployId, imageName, err := getDeployId(imageURI)
@@ -109,7 +111,7 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 		return err
 	}
 
-	// Get the ECS cluster ARN
+	// Get the ECS cluster ARN, this also validates that it exists
 	clusterArn, err := getClusterArn(client, clusterName)
 	if err != nil {
 		return err
@@ -130,21 +132,17 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 		return err
 	}
 
-	//
 	taskArn, err := registerTask(client, ecsTaskRoleArn, imageURI, deployId, imageName, envVars, useGpu)
 	if err != nil {
 		return err
 	}
 
-	err = runTask(client, clusterArn, subnetArn, taskArn, deployId)
+	err = runTask(client, clusterArn, taskArn, subnetArn, deployId)
 	if err != nil {
 		return err
 	}
 
-	//err = deregisterTask(client, taskArn)
-	//if err != nil {
-	//	return err
-	//}
+	log.Info("Cracking", "Started instance for cracking with image ", imageName)
 
 	return nil
 }
@@ -170,20 +168,24 @@ func getEnvVars(bucketName, dictionary, hash, output string) []*ecs.KeyValuePair
 }
 
 func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) error {
-	result, err := client.RunTask(&ecs.RunTaskInput{
-		Cluster:        aws.String(clusterArn),
+	subnetName := strings.SplitN(subnetArn, "/", 2)
+
+	input := &ecs.RunTaskInput{
+		// Should actually work with the short name? Check this
+		Cluster: aws.String(clusterArn),
+
 		TaskDefinition: aws.String(taskArn),
 		Count:          aws.Int64(1),
-		LaunchType:     aws.String(ecs.LaunchTypeEc2),
+		LaunchType:     aws.String(ecs.LaunchTypeFargate),
 		ReferenceId:    aws.String(deployId),
 
 		// Not doing anything with the VPC but need to set this up in order
 		// to run a Fargate container
 		NetworkConfiguration: &ecs.NetworkConfiguration{
 			AwsvpcConfiguration: &ecs.AwsVpcConfiguration{
-				AssignPublicIp: aws.String(ecs.AssignPublicIpDisabled),
+				AssignPublicIp: aws.String(ecs.AssignPublicIpEnabled),
 				//SecurityGroups: nil,
-				Subnets: []*string{aws.String(subnetArn)},
+				Subnets: []*string{aws.String(subnetName[1])},
 			},
 		},
 
@@ -191,7 +193,9 @@ func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) e
 		PropagateTags:        aws.String(ecs.PropagateTagsTaskDefinition),
 		EnableECSManagedTags: aws.Bool(true),
 		Tags:                 getTags(),
-	})
+	}
+
+	result, err := client.RunTask(input)
 
 	if err != nil {
 		return err
@@ -208,6 +212,8 @@ func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) e
 
 func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName string,
 	envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
+
+	// TODO: add support for EC2 + GPU
 	//var resourceReqs []*ecs.ResourceRequirement
 	//if useGpu {
 	//	resourceReqs = []*ecs.ResourceRequirement{
@@ -218,7 +224,7 @@ func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName
 	//	}
 	//}
 
-	result, err := client.RegisterTaskDefinition(&ecs.RegisterTaskDefinitionInput{
+	input := &ecs.RegisterTaskDefinitionInput{
 		RequiresCompatibilities: []*string{aws.String(ecs.CompatibilityFargate)},
 		Family:                  aws.String(imageName),
 
@@ -259,7 +265,9 @@ func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName
 				Interactive:    nil,
 			},
 		},
-	})
+	}
+
+	result, err := client.RegisterTaskDefinition(input)
 
 	if err != nil {
 		return "", err

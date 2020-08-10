@@ -44,3 +44,6 @@ func GetDefaultSubnetArn(sess *session.Session) (string, error) {
 
 	return *subnets[0].SubnetArn, nil
 }
+
+// TODO: create security group for instance?
+func CreateSecurityGroup(sess *session.Session) {}
