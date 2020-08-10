@@ -4,6 +4,7 @@ package compute
 import (
 	"cloudcrackr/constants"
 	"cloudcrackr/iam"
+	"cloudcrackr/network"
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
@@ -61,7 +62,6 @@ func getDeployId(imageURI string) (string, string, error) {
 }
 
 func CreateCluster(sess *session.Session, clusterName string) error {
-	// TODO: seems to create IAM role?
 	client := ecs.New(sess)
 
 	// Settings need to be set to allow tag propagation with ECS.
@@ -85,6 +85,22 @@ func CreateCluster(sess *session.Session, clusterName string) error {
 	return err
 }
 
+func getClusterArn(client *ecs.ECS, clusterName string) (string, error) {
+	result, err := client.DescribeClusters(&ecs.DescribeClustersInput{
+		Clusters: []*string{aws.String(clusterName)},
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(result.Clusters) == 0 {
+		return "", errors.New("couldn't find cluster")
+	}
+
+	return *result.Clusters[0].ClusterArn, nil
+}
+
 func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, dictionary, hash string, useGpu bool) error {
 	client := ecs.New(sess)
 
@@ -93,8 +109,17 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 		return err
 	}
 
-	// ...
-	// Extract last part of Image URI
+	// Get the ECS cluster ARN
+	clusterArn, err := getClusterArn(client, clusterName)
+	if err != nil {
+		return err
+	}
+
+	// Get the default subnet to use
+	subnetArn, err := network.GetDefaultSubnetArn(sess)
+	if err != nil {
+		return err
+	}
 
 	// Create environment variables for task to bootstrap running
 	envVars := getEnvVars(bucketName, dictionary, hash, ProcPrefix+deployId)
@@ -111,7 +136,7 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 		return err
 	}
 
-	err = runTask(client, clusterName, taskArn, deployId)
+	err = runTask(client, clusterArn, subnetArn, taskArn, deployId)
 	if err != nil {
 		return err
 	}
@@ -144,9 +169,9 @@ func getEnvVars(bucketName, dictionary, hash, output string) []*ecs.KeyValuePair
 	}
 }
 
-func runTask(client *ecs.ECS, clusterName, taskArn, deployId string) error {
+func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) error {
 	result, err := client.RunTask(&ecs.RunTaskInput{
-		Cluster:        aws.String(clusterName),
+		Cluster:        aws.String(clusterArn),
 		TaskDefinition: aws.String(taskArn),
 		Count:          aws.Int64(1),
 		LaunchType:     aws.String(ecs.LaunchTypeEc2),
@@ -157,8 +182,8 @@ func runTask(client *ecs.ECS, clusterName, taskArn, deployId string) error {
 		NetworkConfiguration: &ecs.NetworkConfiguration{
 			AwsvpcConfiguration: &ecs.AwsVpcConfiguration{
 				AssignPublicIp: aws.String(ecs.AssignPublicIpDisabled),
-				SecurityGroups: nil,
-				Subnets:        []*string{aws.String("127.0.0.1/32")},
+				//SecurityGroups: nil,
+				Subnets: []*string{aws.String(subnetArn)},
 			},
 		},
 
@@ -181,7 +206,8 @@ func runTask(client *ecs.ECS, clusterName, taskArn, deployId string) error {
 	return nil
 }
 
-func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName string, envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
+func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName string,
+	envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
 	//var resourceReqs []*ecs.ResourceRequirement
 	//if useGpu {
 	//	resourceReqs = []*ecs.ResourceRequirement{
