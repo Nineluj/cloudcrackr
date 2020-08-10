@@ -2,10 +2,23 @@
 name: Feature request
 about: Suggest an idea for this project
 title: ''
-labels: ''
+labels: 'enhancement'
 assignees: ''
 
 ---
+
+## Explanation
+Explain the background related to the feature you would like to see added.
+
+## Benefits
+Explain the tangible benefits that the feature would provide.
+
+## Task list (optional)
+- [] Task1
+- [] Task2
+...
+
+## Additional questions (optional)
 
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
