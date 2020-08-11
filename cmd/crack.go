@@ -1,7 +1,10 @@
 package cmd
 
 import (
-	"cloudcrackr/runner"
+	"cloudcrackr/compute"
+	"cloudcrackr/repository"
+	"cloudcrackr/storage"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/spf13/cobra"
 	"path/filepath"
 )
@@ -30,7 +33,7 @@ var crackCmd = &cobra.Command{
 			hash = hashFileBase
 		}
 
-		return runner.Crack(
+		return crack(
 			awsSession,
 			globalCfg.ClusterName,
 			imageName,
@@ -40,6 +43,28 @@ var crackCmd = &cobra.Command{
 			useGpu,
 		)
 	},
+}
+
+func crack(sess *session.Session, clusterName, imageName, bucketName, dictionary, hash string, useGpu bool) error {
+	// Retrieve info about image
+	imageURI, err := repository.GetImageURI(sess, imageName)
+	if err != nil {
+		return err
+	}
+
+	// Check for the presence of the dictionary and hash file
+	err = storage.StatMultiple(sess, bucketName, dictionary, hash)
+	if err != nil {
+		return err
+	}
+
+	// Deploy image
+	err = compute.DeployContainer(sess, clusterName, imageURI, bucketName, dictionary, hash, useGpu)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func init() {

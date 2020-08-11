@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"cloudcrackr/cmd/utility"
 	"cloudcrackr/repository"
-	"cloudcrackr/utility"
 	"fmt"
 	log "github.com/visionmedia/go-cli-log"
 

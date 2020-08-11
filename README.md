@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/Nineluj/cloudcrackr/master/assets/banner.png" alt="logo"/>
+<img src="https://raw.githubusercontent.com/Nineluj/cloudcrackr/master/.github/images/banner.png" alt="logo"/>
 
 Cloudcrackr is a command line tool orchestrating password cracking on AWS using Docker containers and ECS.
 

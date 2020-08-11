@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"cloudcrackr/cmd/utility"
 	"cloudcrackr/storage"
-	"cloudcrackr/utility"
 	"fmt"
 	"github.com/spf13/cobra"
 	"strings"

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"cloudcrackr/utility"
+	"cloudcrackr/cmd/utility"
 	"github.com/spf13/cobra"
 )
 
