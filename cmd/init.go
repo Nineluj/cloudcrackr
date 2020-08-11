@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"cloudcrackr/auth"
 	"cloudcrackr/compute"
-	"cloudcrackr/iam"
 	"cloudcrackr/storage"
 	"github.com/spf13/cobra"
 	log "github.com/visionmedia/go-cli-log"
@@ -34,7 +34,7 @@ func initInfra(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	err = iam.SetupIAM(awsSession, globalCfg.IAMRoleNamePath)
+	err = auth.SetupIAM(awsSession, globalCfg.IAMRoleNamePath)
 	if err != nil {
 		return err
 	}

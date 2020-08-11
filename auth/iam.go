@@ -1,4 +1,4 @@
-package iam
+package auth
 
 import (
 	"cloudcrackr/constants"
@@ -9,8 +9,6 @@ import (
 )
 
 const (
-	ECSRoleName              = "ecsTaskExecutionRole"
-	ECSManagedPolicy         = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 	AssumeRolePolicyDocument = `{
   "Version": "2012-10-17",
   "Statement": [
@@ -35,25 +33,19 @@ func getTags() []*iam.Tag {
 	}
 }
 
-func GetECSRoleArn(sess *session.Session) (string, error) {
-	client := iam.New(sess)
-	result, err := client.GetRole(&iam.GetRoleInput{RoleName: aws.String(ECSRoleName)})
-
-	if err != nil {
-		return "", err
-	}
-
-	return *result.Role.Arn, nil
-}
-
-// TODO: Create and use an IAM role
 func SetupIAM(sess *session.Session, path string) error {
 	client := iam.New(sess)
 
+	err := createECSRole(client, path)
+
+	return err
+}
+
+func createRole(client *iam.IAM, path, roleName, managedPolicyArn string) error {
 	_, err := client.CreateRole(&iam.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(AssumeRolePolicyDocument),
 		Path:                     aws.String(path),
-		RoleName:                 aws.String(ECSRoleName),
+		RoleName:                 aws.String(roleName),
 		Tags:                     getTags(),
 	})
 
@@ -72,9 +64,20 @@ func SetupIAM(sess *session.Session, path string) error {
 	}
 
 	_, err = client.AttachRolePolicy(&iam.AttachRolePolicyInput{
-		PolicyArn: aws.String(ECSManagedPolicy),
-		RoleName:  aws.String(ECSRoleName),
+		PolicyArn: aws.String(managedPolicyArn),
+		RoleName:  aws.String(roleName),
 	})
 
 	return err
+}
+
+func getRoleArn(sess *session.Session, roleName string) (string, error) {
+	client := iam.New(sess)
+	result, err := client.GetRole(&iam.GetRoleInput{RoleName: aws.String(roleName)})
+
+	if err != nil {
+		return "", err
+	}
+
+	return *result.Role.Arn, nil
 }

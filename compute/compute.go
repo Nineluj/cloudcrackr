@@ -2,8 +2,8 @@
 package compute
 
 import (
+	"cloudcrackr/auth"
 	"cloudcrackr/constants"
-	"cloudcrackr/iam"
 	"cloudcrackr/network"
 	"errors"
 	"fmt"
@@ -102,6 +102,7 @@ func getClusterArn(client *ecs.ECS, clusterName string) (string, error) {
 	return *result.Clusters[0].ClusterArn, nil
 }
 
+// Deploys the image onto an ECS managed container
 func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, dictionary, hash string,
 	useGpu bool) error {
 	client := ecs.New(sess)
@@ -123,16 +124,22 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 		return err
 	}
 
-	// Create environment variables for task to bootstrap running
-	envVars := getEnvVars(bucketName, dictionary, hash, ProcPrefix+deployId)
-
-	// Get the IAM role arn for the task
-	ecsTaskRoleArn, err := iam.GetECSRoleArn(sess)
+	// Get credentials with limited privileges for AWS cli on the container
+	credentials, err := auth.GetImageCredentials(sess)
 	if err != nil {
 		return err
 	}
 
-	taskArn, err := registerTask(client, ecsTaskRoleArn, imageURI, deployId, imageName, envVars, useGpu)
+	// Get the s3 locations for the execute script
+	s3Targets := getS3Targets(bucketName, dictionary, hash, ProcPrefix+deployId)
+
+	// Get the IAM role arn for the task
+	ecsTaskRoleArn, err := auth.GetECSRoleArn(sess)
+	if err != nil {
+		return err
+	}
+
+	taskArn, err := registerTask(client, ecsTaskRoleArn, imageURI, deployId, imageName, s3Targets, credentials, useGpu)
 	if err != nil {
 		return err
 	}
@@ -147,23 +154,14 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 	return nil
 }
 
-func getEnvVars(bucketName, dictionary, hash, output string) []*ecs.KeyValuePair {
+func getS3Targets(bucketName, dictionary, hash, output string) []*string {
 	base := "s3://" + bucketName + "/"
 
 	// These could also be written to a file and passed using EnvironmentFile
-	return []*ecs.KeyValuePair{
-		{
-			Name:  aws.String("CCR_DICTIONARY"),
-			Value: aws.String(base + dictionary),
-		},
-		{
-			Name:  aws.String("CCR_HASH"),
-			Value: aws.String(base + hash),
-		},
-		{
-			Name:  aws.String("CCR_OUTPUT"),
-			Value: aws.String(base + output),
-		},
+	return []*string{
+		aws.String(base + dictionary),
+		aws.String(base + hash),
+		aws.String(base + output),
 	}
 }
 
@@ -211,7 +209,7 @@ func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) e
 }
 
 func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName string,
-	envVars []*ecs.KeyValuePair, useGpu bool) (string, error) {
+	s3TargetArguments, credentialArguments []*string, useGpu bool) (string, error) {
 
 	// TODO: add support for EC2 + GPU
 	//var resourceReqs []*ecs.ResourceRequirement
@@ -223,6 +221,8 @@ func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName
 	//		},
 	//	}
 	//}
+
+	commandArguments := append(s3TargetArguments, credentialArguments...)
 
 	input := &ecs.RegisterTaskDefinitionInput{
 		RequiresCompatibilities: []*string{aws.String(ecs.CompatibilityFargate)},
@@ -241,13 +241,16 @@ func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName
 
 		ContainerDefinitions: []*ecs.ContainerDefinition{
 			{
+				Command: commandArguments,
+
 				// -- Main params
 				Image: aws.String(imageURI),
 				Name:  aws.String(deployId),
 				// We use these environment variables to tell the host where
 				// it can download the files from on S3 and where it should
 				// upload the results after it's done
-				Environment: envVars,
+				// TODO: remove this part
+				//Environment: envVars,
 
 				// Define GPU usage here
 				//ResourceRequirements: resourceReqs,

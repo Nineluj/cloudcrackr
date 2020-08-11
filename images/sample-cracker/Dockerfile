@@ -32,5 +32,7 @@ COPY execute.sh .
 # Make the script executable
 RUN chmod +x execute.sh
 
+ENV CUSTOM="ON"
+
 # Command to run the executable
-CMD ["/root/execute.sh"]
+ENTRYPOINT ["/app/main/execute.sh"]
