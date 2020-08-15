@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"cloudcrackr/cmd/utility"
+	"errors"
 	"github.com/spf13/cobra"
 )
 
@@ -9,22 +10,22 @@ import (
 var teardownCmd = &cobra.Command{
 	Use:   "teardown",
 	Short: "Tear down the existing infrastructure. Use conf clean to remove the configuration file.",
-	Run:   tearDown,
+	RunE:  tearDown,
 }
 
 var force bool
 
-func tearDown(cmd *cobra.Command, args []string) {
+func tearDown(cmd *cobra.Command, args []string) error {
 	if !force {
 		accept := utility.GetBoolean("This will remove the existing infrastructure. " +
 			"This operation cannot be reversed. Proceed?")
-
 		if !accept {
-			return
+			return nil
 		}
 	}
 
 	// TODO: remove S3 bucket, ECS images & containers, IAM role last...
+	return errors.New("not implemented")
 }
 
 func init() {

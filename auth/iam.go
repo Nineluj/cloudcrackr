@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	AssumeRolePolicyDocument = `{
+	DefaultAssumeRolePolicyDocument = `{
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -24,7 +24,7 @@ const (
 }`
 )
 
-func getTags() []*iam.Tag {
+func getIAMTags() []*iam.Tag {
 	return []*iam.Tag{
 		{
 			Key:   aws.String(constants.TagKey),
@@ -33,20 +33,41 @@ func getTags() []*iam.Tag {
 	}
 }
 
+func getUserArn(client *iam.IAM) (string, error) {
+	//TODO: document that we use session tokens to create policy that allows the user
+	// to create the STS role?
+	result, err := client.GetUser(&iam.GetUserInput{})
+	if err != nil {
+		return "", err
+	}
+
+	return *result.User.Arn, nil
+}
+
 func SetupIAM(sess *session.Session, path string) error {
 	client := iam.New(sess)
 
-	err := createECSRole(client, path)
+	userArn, err := getUserArn(client)
+	if err != nil {
+		return err
+	}
+
+	err = setupECSRole(client, path)
+	if err != nil {
+		return err
+	}
+
+	err = setupCrackrRole(client, path, userArn)
 
 	return err
 }
 
-func createRole(client *iam.IAM, path, roleName, managedPolicyArn string) error {
+func createRole(client *iam.IAM, path, roleName, assumeRolePolicyDocument string) error {
 	_, err := client.CreateRole(&iam.CreateRoleInput{
-		AssumeRolePolicyDocument: aws.String(AssumeRolePolicyDocument),
-		Path:                     aws.String(path),
+		AssumeRolePolicyDocument: aws.String(assumeRolePolicyDocument),
+		Path:                     aws.String("/" + path + "/"),
 		RoleName:                 aws.String(roleName),
-		Tags:                     getTags(),
+		Tags:                     getIAMTags(),
 	})
 
 	if err != nil {
@@ -63,7 +84,11 @@ func createRole(client *iam.IAM, path, roleName, managedPolicyArn string) error 
 		}
 	}
 
-	_, err = client.AttachRolePolicy(&iam.AttachRolePolicyInput{
+	return nil
+}
+
+func attachPolicy(client *iam.IAM, roleName string, managedPolicyArn string) error {
+	_, err := client.AttachRolePolicy(&iam.AttachRolePolicyInput{
 		PolicyArn: aws.String(managedPolicyArn),
 		RoleName:  aws.String(roleName),
 	})

@@ -22,13 +22,6 @@ func initInfra(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	// This is not needed: repositories will be created when a new image is added
-	//err = repository.CreateRepository(awsSession)
-	//if err != nil {
-	//	return err
-	//}
-	//
-
 	err = compute.CreateCluster(awsSession, globalCfg.ClusterName)
 	if err != nil {
 		return err

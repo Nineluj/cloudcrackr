@@ -124,17 +124,17 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 		return err
 	}
 
-	// Get credentials with limited privileges for AWS cli on the container
-	credentials, err := auth.GetImageCredentials(sess)
-	if err != nil {
-		return err
-	}
-
 	// Get the s3 locations for the execute script
 	s3Targets := getS3Targets(bucketName, dictionary, hash, ProcPrefix+deployId)
 
 	// Get the IAM role arn for the task
 	ecsTaskRoleArn, err := auth.GetECSRoleArn(sess)
+	if err != nil {
+		return err
+	}
+
+	// Get credentials with limited privileges for AWS cli on the container
+	credentials, err := auth.GetCrackrCredentials(sess, *s3Targets[0], *s3Targets[1], *s3Targets[2])
 	if err != nil {
 		return err
 	}

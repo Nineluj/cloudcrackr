@@ -7,11 +7,17 @@ import (
 
 const (
 	ECSRoleName         = "ecsTaskExecutionRole"
-	ECSManagedPolicyArn = "arn:aws:auth::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+	ECSManagedPolicyArn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 )
 
-func createECSRole(client *iam.IAM, path string) error {
-	return createRole(client, path, ECSRoleName, ECSManagedPolicyArn)
+func setupECSRole(client *iam.IAM, path string) error {
+	err := createRole(client, path, ECSRoleName, DefaultAssumeRolePolicyDocument)
+	if err != nil {
+		return err
+	}
+
+	err = attachPolicy(client, ECSRoleName, ECSManagedPolicyArn)
+	return err
 }
 
 func GetECSRoleArn(sess *session.Session) (string, error) {
