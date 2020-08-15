@@ -12,7 +12,7 @@ type (
 
 	StatementEntry struct {
 		Effect    string
-		Action    string
+		Action    []string
 		Principal Principal
 	}
 
@@ -29,7 +29,7 @@ func BuildUserAssumePolicyDocument(userArn string) (string, error) {
 		Statement: []StatementEntry{
 			{
 				Effect:    "Allow",
-				Action:    "sts:AssumeRole",
+				Action:    []string{"sts:AssumeRole", "sts:TagSession"},
 				Principal: Principal{AWSPrincipal: userArn},
 			},
 		},

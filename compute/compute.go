@@ -149,7 +149,7 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 		return err
 	}
 
-	log.Info("Cracking", "Started instance for cracking with image ", imageName)
+	log.Info("Cracking", "Started instance for cracking with image %v", imageName)
 
 	return nil
 }

@@ -68,6 +68,7 @@ func createRole(client *iam.IAM, path, roleName, assumeRolePolicyDocument string
 		Path:                     aws.String("/" + path + "/"),
 		RoleName:                 aws.String(roleName),
 		Tags:                     getIAMTags(),
+		MaxSessionDuration:       aws.Int64(AssumeRoleDuration),
 	})
 
 	if err != nil {
