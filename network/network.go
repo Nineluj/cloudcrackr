@@ -7,6 +7,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+const (
+	NoDefaultSubnetError = "found no default subnet to use"
+)
+
 func GetDefaultSubnetArn(sess *session.Session) (string, error) {
 	client := ec2.New(sess)
 
@@ -39,11 +43,8 @@ func GetDefaultSubnetArn(sess *session.Session) (string, error) {
 
 	// it's probably fine to have more than 1 subnet found
 	if len(subnets) == 0 {
-		return "", errors.New("found no default subnet to use")
+		return "", errors.New(NoDefaultSubnetError)
 	}
 
 	return *subnets[0].SubnetArn, nil
 }
-
-// TODO: create security group for instance?
-func CreateSecurityGroup(sess *session.Session) {}

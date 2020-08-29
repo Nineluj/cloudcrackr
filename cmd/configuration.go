@@ -11,6 +11,11 @@ import (
 	"reflect"
 )
 
+const (
+	UserCreateConfigurationDeniedError = "user did not want to create config"
+	FixedConfigCommandError            = "command doesn't work with custom config path"
+)
+
 // Config declared this way to force the presence of these values at runtime
 type config struct {
 	// Could extend this with "optional" fields
@@ -41,14 +46,14 @@ var configCleanCmd = &cobra.Command{
 	Use:   "clean",
 	Short: "Removes the current configuration file",
 	Args:  cobra.ExactArgs(0),
-	Run:   configClean,
+	RunE:  configClean,
 }
 
 var configWhereCmd = &cobra.Command{
 	Use:   "where",
 	Short: "Shows the default configuration location",
 	Args:  cobra.ExactArgs(0),
-	Run:   configWhere,
+	RunE:  configWhere,
 }
 
 func init() {
@@ -69,7 +74,7 @@ func generateConfig() error {
 	confirm := utility.GetBoolean("Do you want to create a config now?")
 
 	if !confirm {
-		return errors.New("user did not want to create config")
+		return errors.New(UserCreateConfigurationDeniedError)
 	}
 
 	// Necessary evil of reflect to make the config logic more elegant
@@ -117,24 +122,20 @@ func getMissingConf() bool {
 	return fixedMissingConf
 }
 
-func configWhere(c *cobra.Command, _ []string) {
+func configWhere(c *cobra.Command, _ []string) error {
 	if c.Flag("config").Value.String() != "" {
-		log.Error(errors.New("command doesn't work with custom config path"))
-		return
+		return errors.New(FixedConfigCommandError)
 	}
 
 	fmt.Println(defaultCfgPath)
+	return nil
 }
 
-func configClean(c *cobra.Command, _ []string) {
+func configClean(c *cobra.Command, _ []string) error {
 	if c.Flag("config").Value.String() != "" {
-		log.Error(errors.New("command doesn't work with custom config path"))
-		return
+		return errors.New(FixedConfigCommandError)
 	}
 
 	err := os.Remove(defaultCfgPath)
-	if err != nil {
-		log.Error(err)
-	}
-
+	return err
 }

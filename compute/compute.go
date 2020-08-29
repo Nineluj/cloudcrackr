@@ -27,6 +27,11 @@ const (
 	allocatedVCpus = ".25 vCPU"
 )
 
+const (
+	ClusterNotFoundError         = "couldn't find cluster"
+	WrongTaskDeregistrationError = "wrong task was de-registered"
+)
+
 var (
 	// Settings that need to be enabled to allow tag forwarding to work properly
 	EnabledSettings = [...]string{
@@ -96,7 +101,7 @@ func getClusterArn(client *ecs.ECS, clusterName string) (string, error) {
 	}
 
 	if len(result.Clusters) == 0 {
-		return "", errors.New("couldn't find cluster")
+		return "", errors.New(ClusterNotFoundError)
 	}
 
 	return *result.Clusters[0].ClusterArn, nil
@@ -289,7 +294,7 @@ func deregisterTask(client *ecs.ECS, taskArn string) error {
 	}
 
 	if taskArn != *result.TaskDefinition.TaskDefinitionArn {
-		return errors.New("wrong task was de-registered")
+		return errors.New(WrongTaskDeregistrationError)
 	}
 
 	return nil

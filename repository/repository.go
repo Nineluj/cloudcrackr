@@ -26,6 +26,12 @@ const (
 	TagLookupTimeout = 10
 )
 
+const (
+	ImageNotFoundError           = "couldn't find imageName"
+	ECRCredentialsRetrievalError = "couldn't retrieve credentials for ECR"
+	ECRURINoHttpsPrefixError     = "expected ECR endpoint to contain https prefix"
+)
+
 func getTags() []*ecr.Tag {
 	return []*ecr.Tag{
 		{
@@ -74,7 +80,7 @@ func GetImageURI(sess *session.Session, imageName string) (string, error) {
 	}
 
 	if len(result.ImageDetails) == 0 {
-		return "", errors.New("couldn't find imageName")
+		return "", errors.New(ImageNotFoundError)
 	}
 
 	domain, _, err := getECRDetails(sess)
@@ -198,17 +204,14 @@ func getECRDetails(sess *session.Session) (string, string, error) {
 		return "", "", err
 	}
 
-	if len(result.AuthorizationData) > 1 {
-		// TODO: look into this
-		return "", "", errors.New("received more than one authorization credentials")
-	} else if len(result.AuthorizationData) == 0 {
-		return "", "", errors.New("couldn't retrieve credentials for ECR")
+	if len(result.AuthorizationData) == 0 {
+		return "", "", errors.New(ECRCredentialsRetrievalError)
 	}
 
 	endpoint := *result.AuthorizationData[0].ProxyEndpoint
 	endpointTrimmed := strings.TrimPrefix(endpoint, "https://")
 	if len(endpoint) == len(endpointTrimmed) {
-		return "", "", errors.New("expected ECR endpoint to contain https prefix")
+		return "", "", errors.New(ECRURINoHttpsPrefixError)
 	}
 
 	authToken := result.AuthorizationData[0].AuthorizationToken
@@ -277,10 +280,6 @@ func pushImage(client *dclient.Client, username, password, imageRef string) erro
 		RegistryAuth: registryAuth,
 		// Not sure about these two?
 		All: false,
-		PrivilegeFunc: func() (string, error) {
-			fmt.Println("something happened")
-			return "", errors.New("my fail")
-		},
 	}
 
 	readCloser, err := client.ImagePush(context.Background(), imageRef, pushOptions)
