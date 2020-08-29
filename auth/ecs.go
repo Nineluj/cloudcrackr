@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 )
@@ -22,4 +23,9 @@ func setupECSRole(client *iam.IAM, path string) error {
 
 func GetECSRoleArn(sess *session.Session) (string, error) {
 	return getRoleArn(sess, ECSRoleName)
+}
+
+func deleteECSRole(client *iam.IAM) error {
+	_, err := client.DeleteRole(&iam.DeleteRoleInput{RoleName: aws.String(ECSRoleName)})
+	return err
 }

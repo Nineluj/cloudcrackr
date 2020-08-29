@@ -74,5 +74,5 @@ func dictionaryAdd(_ *cobra.Command, args []string) error {
 func dictionaryDelete(_ *cobra.Command, args []string) error {
 	dictionaryFullKey := DictionaryPrefix + args[0]
 
-	return storage.Delete(awsSession, globalCfg.S3BucketName, dictionaryFullKey)
+	return storage.DeleteObject(awsSession, globalCfg.S3BucketName, dictionaryFullKey)
 }

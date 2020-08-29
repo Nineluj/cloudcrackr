@@ -62,6 +62,18 @@ func SetupIAM(sess *session.Session, path string) error {
 	return err
 }
 
+func DeleteIAMRoles(sess *session.Session) error {
+	client := iam.New(sess)
+
+	err := deleteECSRole(client)
+	if err != nil {
+		return err
+	}
+
+	err = deleteCrackrRole(client)
+	return err
+}
+
 func createRole(client *iam.IAM, path, roleName, assumeRolePolicyDocument string) error {
 	_, err := client.CreateRole(&iam.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(assumeRolePolicyDocument),

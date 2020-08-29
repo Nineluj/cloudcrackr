@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"cloudcrackr/auth"
 	"cloudcrackr/cmd/utility"
-	"errors"
+	"cloudcrackr/compute"
+	"cloudcrackr/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +17,7 @@ var teardownCmd = &cobra.Command{
 
 var force bool
 
-func tearDown(cmd *cobra.Command, args []string) error {
+func tearDown(_ *cobra.Command, _ []string) error {
 	if !force {
 		accept := utility.GetBoolean("This will remove the existing infrastructure. " +
 			"This operation cannot be reversed. Proceed?")
@@ -24,8 +26,20 @@ func tearDown(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// TODO: remove S3 bucket, ECS images & containers, IAM role last...
-	return errors.New("not implemented")
+	// Remove the S3 bucket
+	err := storage.DeleteBucket(awsSession, globalCfg.S3BucketName)
+	if err != nil {
+		return err
+	}
+
+	// remove ECS cluster
+	err = compute.DeleteCluster(awsSession, globalCfg.ClusterName)
+	if err != nil {
+		return err
+	}
+
+	// Remove IAM image
+	return auth.DeleteIAMRoles(awsSession)
 }
 
 func init() {

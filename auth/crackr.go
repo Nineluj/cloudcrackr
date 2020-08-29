@@ -38,6 +38,11 @@ func setupCrackrRole(client *iam.IAM, path, userArn string) error {
 	return createRole(client, path, CrackrRoleName, userAllowedAssumePolicyDocument)
 }
 
+func deleteCrackrRole(client *iam.IAM) error {
+	_, err := client.DeleteRole(&iam.DeleteRoleInput{RoleName: aws.String(CrackrRoleName)})
+	return err
+}
+
 func getCrackrRoleArn(sess *session.Session) (string, error) {
 	return getRoleArn(sess, CrackrRoleName)
 }

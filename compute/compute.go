@@ -91,6 +91,18 @@ func CreateCluster(sess *session.Session, clusterName string) error {
 	return err
 }
 
+func DeleteCluster(sess *session.Session, clusterName string) error {
+	client := ecs.New(sess)
+
+	clusterArn, err := getClusterArn(client, clusterName)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.DeleteCluster(&ecs.DeleteClusterInput{Cluster: aws.String(clusterArn)})
+	return err
+}
+
 func getClusterArn(client *ecs.ECS, clusterName string) (string, error) {
 	result, err := client.DescribeClusters(&ecs.DescribeClustersInput{
 		Clusters: []*string{aws.String(clusterName)},

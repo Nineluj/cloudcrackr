@@ -1,4 +1,4 @@
-// Provides functions for interacting with storage on Cloud
+// Provides functions for interacting with AWS storage
 package storage
 
 import (
@@ -26,6 +26,47 @@ func CreateBucket(sess *session.Session, bucketName string) error {
 	}
 
 	return nil
+}
+
+func emptyBucket(client *s3.S3, bucketName string) error {
+	var deleteError error
+
+	err := client.ListObjectsV2Pages(&s3.ListObjectsV2Input{}, func(output *s3.ListObjectsV2Output, lastPage bool) bool {
+		for _, obj := range output.Contents {
+			_, err := client.DeleteObject(&s3.DeleteObjectInput{
+				Bucket: aws.String(bucketName),
+				Key:    obj.Key,
+			})
+
+			if err != nil {
+				deleteError = err
+				// returning false causes paginator to stop
+				return false
+			}
+		}
+
+		return true
+	})
+
+	if deleteError != nil {
+		return deleteError
+	}
+
+	return err
+}
+
+// DeleteBucket Deletes the bucket with the given bucketName from S3
+// It will first empty the bucket since non-empty buckets cannot be deleted
+func DeleteBucket(sess *session.Session, bucketName string) error {
+	client := s3.New(sess)
+
+	err := emptyBucket(client, bucketName)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.DeleteBucket(&s3.DeleteBucketInput{Bucket: aws.String(bucketName)})
+	return err
 }
 
 // Lists the files available with the given prefix.
@@ -75,8 +116,8 @@ func Upload(sess *session.Session, filePath, bucketName, key string) error {
 	return nil
 }
 
-// Delete a file from the remote storage
-func Delete(sess *session.Session, bucketName, key string) error {
+// DeleteObject Deletes a file from the remote storage
+func DeleteObject(sess *session.Session, bucketName, key string) error {
 	client := s3.New(sess)
 
 	_, err := client.DeleteObject(&s3.DeleteObjectInput{
