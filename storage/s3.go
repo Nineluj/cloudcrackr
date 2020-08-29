@@ -3,6 +3,7 @@ package storage
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -31,7 +32,9 @@ func CreateBucket(sess *session.Session, bucketName string) error {
 func emptyBucket(client *s3.S3, bucketName string) error {
 	var deleteError error
 
-	err := client.ListObjectsV2Pages(&s3.ListObjectsV2Input{}, func(output *s3.ListObjectsV2Output, lastPage bool) bool {
+	err := client.ListObjectsV2Pages(&s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+	}, func(output *s3.ListObjectsV2Output, _ bool) bool {
 		for _, obj := range output.Contents {
 			_, err := client.DeleteObject(&s3.DeleteObjectInput{
 				Bucket: aws.String(bucketName),
@@ -55,18 +58,40 @@ func emptyBucket(client *s3.S3, bucketName string) error {
 	return err
 }
 
+func ignoreBucketNotFoundError(err error) error {
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			// Ignore this to make the function idempotent
+			case s3.ErrCodeNoSuchBucket:
+				log.Info("S3", "Bucket doesn't exist")
+				return nil
+			default:
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	return err
+}
+
 // DeleteBucket Deletes the bucket with the given bucketName from S3
 // It will first empty the bucket since non-empty buckets cannot be deleted
 func DeleteBucket(sess *session.Session, bucketName string) error {
 	client := s3.New(sess)
 
 	err := emptyBucket(client, bucketName)
-	if err != nil {
+	if ignoreBucketNotFoundError(err) != nil {
 		return err
 	}
 
 	_, err = client.DeleteBucket(&s3.DeleteBucketInput{Bucket: aws.String(bucketName)})
-	return err
+	if ignoreBucketNotFoundError(err) != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Lists the files available with the given prefix.

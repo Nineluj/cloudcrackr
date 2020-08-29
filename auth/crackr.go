@@ -39,7 +39,13 @@ func setupCrackrRole(client *iam.IAM, path, userArn string) error {
 }
 
 func deleteCrackrRole(client *iam.IAM) error {
-	_, err := client.DeleteRole(&iam.DeleteRoleInput{RoleName: aws.String(CrackrRoleName)})
+	// we need to detach policies first
+	err := clearIAMRolePolicies(client, CrackrRoleName)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.DeleteRole(&iam.DeleteRoleInput{RoleName: aws.String(CrackrRoleName)})
 	return err
 }
 

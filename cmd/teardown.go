@@ -6,6 +6,7 @@ import (
 	"cloudcrackr/compute"
 	"cloudcrackr/storage"
 	"github.com/spf13/cobra"
+	log "github.com/visionmedia/go-cli-log"
 )
 
 // teardownCmd represents the teardown command
@@ -38,8 +39,17 @@ func tearDown(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	log.Info("ECS", "Cluster is deleted")
+
 	// Remove IAM image
-	return auth.DeleteIAMRoles(awsSession)
+	err = auth.DeleteIAMRoles(awsSession)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Teardown", "Complete")
+
+	return nil
 }
 
 func init() {

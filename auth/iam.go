@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
+	log "github.com/visionmedia/go-cli-log"
 )
 
 const (
@@ -62,16 +63,34 @@ func SetupIAM(sess *session.Session, path string) error {
 	return err
 }
 
+func ignoreNoSuchEntityError(err error) error {
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			// Ignore this to make the function idempotent
+			case iam.ErrCodeNoSuchEntityException:
+				log.Info("IAM", "Role doesn't exist")
+				return nil
+			default:
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	return err
+}
+
 func DeleteIAMRoles(sess *session.Session) error {
 	client := iam.New(sess)
 
 	err := deleteECSRole(client)
-	if err != nil {
+	if ignoreNoSuchEntityError(err) != nil {
 		return err
 	}
 
 	err = deleteCrackrRole(client)
-	return err
+	return ignoreNoSuchEntityError(err)
 }
 
 func createRole(client *iam.IAM, path, roleName, assumeRolePolicyDocument string) error {
@@ -118,4 +137,59 @@ func getRoleArn(sess *session.Session, roleName string) (string, error) {
 	}
 
 	return *result.Role.Arn, nil
+}
+
+// Deletes and detaches the two kinds of related policies
+// RolePolicies (=inline policies) and AttachedPolicies
+func clearIAMRolePolicies(client *iam.IAM, roleName string) error {
+	rn := aws.String(roleName)
+
+	var deleteErr error
+
+	err := client.ListRolePoliciesPages(&iam.ListRolePoliciesInput{
+		RoleName: rn,
+	}, func(out *iam.ListRolePoliciesOutput, _ bool) bool {
+		for _, policyName := range out.PolicyNames {
+			_, deleteErr = client.DeleteRolePolicy(&iam.DeleteRolePolicyInput{
+				PolicyName: policyName,
+				RoleName:   rn,
+			})
+
+			if deleteErr != nil {
+				return false
+			}
+		}
+		return true
+	})
+
+	if deleteErr != nil {
+		return deleteErr
+	}
+
+	if err != nil {
+		return err
+	}
+
+	var detachErr error
+	err = client.ListAttachedRolePoliciesPages(&iam.ListAttachedRolePoliciesInput{
+		RoleName: rn,
+	}, func(out *iam.ListAttachedRolePoliciesOutput, _ bool) bool {
+		for _, policy := range out.AttachedPolicies {
+			_, detachErr = client.DetachRolePolicy(&iam.DetachRolePolicyInput{
+				PolicyArn: policy.PolicyArn,
+				RoleName:  rn,
+			})
+
+			if detachErr != nil {
+				return false
+			}
+		}
+		return true
+	})
+
+	if detachErr != nil {
+		return detachErr
+	}
+
+	return err
 }

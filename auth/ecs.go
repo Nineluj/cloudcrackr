@@ -26,6 +26,11 @@ func GetECSRoleArn(sess *session.Session) (string, error) {
 }
 
 func deleteECSRole(client *iam.IAM) error {
-	_, err := client.DeleteRole(&iam.DeleteRoleInput{RoleName: aws.String(ECSRoleName)})
+	err := clearIAMRolePolicies(client, ECSRoleName)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.DeleteRole(&iam.DeleteRoleInput{RoleName: aws.String(ECSRoleName)})
 	return err
 }
