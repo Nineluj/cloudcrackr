@@ -3,6 +3,8 @@ package utility
 import (
 	"bufio"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	log "github.com/visionmedia/go-cli-log"
 	"os"
 )
 
@@ -32,4 +34,21 @@ func Pluralize(word string, n int) string {
 	}
 
 	return word + "s"
+}
+
+func IgnoreAWSError(err error, ignoreErr string) error {
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case ignoreErr:
+				log.Info("Ignoring", ignoreErr)
+				return nil
+			default:
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	return err
 }

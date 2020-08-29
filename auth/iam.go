@@ -1,12 +1,11 @@
 package auth
 
 import (
+	"cloudcrackr/cmd/utility"
 	"cloudcrackr/constants"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
-	log "github.com/visionmedia/go-cli-log"
 )
 
 const (
@@ -64,21 +63,7 @@ func SetupIAM(sess *session.Session, path string) error {
 }
 
 func ignoreNoSuchEntityError(err error) error {
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			// Ignore this to make the function idempotent
-			case iam.ErrCodeNoSuchEntityException:
-				log.Info("IAM", "Role doesn't exist")
-				return nil
-			default:
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-	return err
+	return utility.IgnoreAWSError(err, iam.ErrCodeNoSuchEntityException)
 }
 
 func DeleteIAMRoles(sess *session.Session) error {
@@ -102,21 +87,7 @@ func createRole(client *iam.IAM, path, roleName, assumeRolePolicyDocument string
 		MaxSessionDuration:       aws.Int64(AssumeRoleDuration),
 	})
 
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			// Ignore this to make the function idempotent
-			case iam.ErrCodeEntityAlreadyExistsException:
-				break
-			default:
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
-	return nil
+	return utility.IgnoreAWSError(err, iam.ErrCodeEntityAlreadyExistsException)
 }
 
 func attachPolicy(client *iam.IAM, roleName string, managedPolicyArn string) error {

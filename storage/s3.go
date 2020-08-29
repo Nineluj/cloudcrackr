@@ -2,8 +2,8 @@
 package storage
 
 import (
+	"cloudcrackr/cmd/utility"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -59,21 +59,7 @@ func emptyBucket(client *s3.S3, bucketName string) error {
 }
 
 func ignoreBucketNotFoundError(err error) error {
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			// Ignore this to make the function idempotent
-			case s3.ErrCodeNoSuchBucket:
-				log.Info("S3", "Bucket doesn't exist")
-				return nil
-			default:
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-	return err
+	return utility.IgnoreAWSError(err, s3.ErrCodeNoSuchBucket)
 }
 
 // DeleteBucket Deletes the bucket with the given bucketName from S3

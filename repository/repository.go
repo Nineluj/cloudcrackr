@@ -2,6 +2,7 @@
 package repository
 
 import (
+	"cloudcrackr/cmd/utility"
 	"cloudcrackr/constants"
 	"context"
 	"encoding/base64"
@@ -9,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/docker/docker/api/types"
@@ -55,17 +55,7 @@ func createRepository(sess *session.Session, name string) error {
 		Tags:               getTags(),
 	})
 
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			// Since we want this op to be idempotent we don't care about this error
-			case ecr.ErrCodeRepositoryAlreadyExistsException:
-				return nil
-			}
-		}
-	}
-
-	return err
+	return utility.IgnoreAWSError(err, ecr.ErrCodeRepositoryAlreadyExistsException)
 }
 
 // Verifies the presence of the imageName and returns its URI
