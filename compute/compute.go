@@ -151,7 +151,8 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 	}
 
 	// Get credentials with limited privileges for AWS cli on the container
-	credentials, err := auth.GetCrackrCredentials(sess, *s3Targets[0], *s3Targets[1], *s3Targets[2])
+	credentials, err := auth.GetCrackrCredentials(sess,
+		s3Targets.dictionaryPath, s3Targets.hashPath, s3Targets.outputPath)
 	if err != nil {
 		return err
 	}
@@ -171,14 +172,20 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 	return nil
 }
 
-func getS3Targets(bucketName, dictionary, hash, output string) []*string {
+type S3Targets struct {
+	dictionaryPath string
+	hashPath       string
+	outputPath     string
+}
+
+func getS3Targets(bucketName, dictionary, hash, output string) *S3Targets {
 	base := "s3://" + bucketName + "/"
 
 	// These could also be written to a file and passed using EnvironmentFile
-	return []*string{
-		aws.String(base + dictionary),
-		aws.String(base + hash),
-		aws.String(base + output),
+	return &S3Targets{
+		base + dictionary,
+		base + hash,
+		base + output,
 	}
 }
 
@@ -226,20 +233,15 @@ func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) e
 }
 
 func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName string,
-	s3TargetArguments, credentialArguments []*string, useGpu bool) (string, error) {
+	s3Target *S3Targets, credentials *auth.Credentials, _ bool) (string, error) {
 
-	// TODO: add support for EC2 + GPU
-	//var resourceReqs []*ecs.ResourceRequirement
-	//if useGpu {
-	//	resourceReqs = []*ecs.ResourceRequirement{
-	//		{
-	//			Type:  aws.String("GPU"),
-	//			Value: aws.String("1"),
-	//		},
-	//	}
-	//}
-
-	commandArguments := append(s3TargetArguments, credentialArguments...)
+	commandArguments := []*string{
+		// first three arguments for s3
+		&s3Target.dictionaryPath, &s3Target.hashPath, &s3Target.outputPath,
+		// next three are AWS credentials so that the container can use the aws CLI
+		// with limited permissions
+		&credentials.AccessKeyId, &credentials.SecretAccessKey, &credentials.SessionToken,
+	}
 
 	input := &ecs.RegisterTaskDefinitionInput{
 		RequiresCompatibilities: []*string{aws.String(ecs.CompatibilityFargate)},
@@ -263,13 +265,8 @@ func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName
 				// -- Main params
 				Image: aws.String(imageURI),
 				Name:  aws.String(deployId),
-				// We use these environment variables to tell the host where
-				// it can download the files from on S3 and where it should
-				// upload the results after it's done
-				// TODO: remove this part
-				//Environment: envVars,
 
-				// Define GPU usage here
+				// (not implemented yet) Define GPU usage here
 				//ResourceRequirements: resourceReqs,
 				// Could tweak kernel parameters to speed up container speeds
 				SystemControls: nil,

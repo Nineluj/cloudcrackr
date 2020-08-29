@@ -58,8 +58,14 @@ func s3ArnFormat(name string) string {
 	return "arn:aws:s3:::" + bucketWithKey
 }
 
+type Credentials struct {
+	AccessKeyId     string
+	SecretAccessKey string
+	SessionToken    string
+}
+
 // Retrieves the temporary image credentials
-func GetCrackrCredentials(sess *session.Session, dictionaryS3, hashS3, outputS3 string) ([]*string, error) {
+func GetCrackrCredentials(sess *session.Session, dictionaryS3, hashS3, outputS3 string) (*Credentials, error) {
 	client := sts.New(sess)
 
 	roleArn, err := getCrackrRoleArn(sess)
@@ -84,9 +90,9 @@ func GetCrackrCredentials(sess *session.Session, dictionaryS3, hashS3, outputS3 
 		return nil, err
 	}
 
-	return []*string{
-		result.Credentials.AccessKeyId,
-		result.Credentials.SecretAccessKey,
-		result.Credentials.SessionToken,
+	return &Credentials{
+		*result.Credentials.AccessKeyId,
+		*result.Credentials.SecretAccessKey,
+		*result.Credentials.SessionToken,
 	}, nil
 }
