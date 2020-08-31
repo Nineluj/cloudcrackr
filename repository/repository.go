@@ -2,6 +2,7 @@
 package repository
 
 import (
+	"bytes"
 	"cloudcrackr/cmd/utility"
 	"cloudcrackr/constants"
 	"context"
@@ -17,7 +18,6 @@ import (
 	log "github.com/visionmedia/go-cli-log"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 	"time"
 )
@@ -85,6 +85,10 @@ func GetImageURI(sess *session.Session, imageName string) (string, error) {
 }
 
 func collector(allRepos []*ecr.Repository, nTagCheckers int, recv <-chan tagCheckedRepository) (taggedRepoNames []string) {
+	if nTagCheckers == 0 {
+		return
+	}
+
 	// map for repos so that once we get responses we can find them in O(1) time
 	repoMap := make(map[string]*ecr.Repository)
 	for _, repo := range allRepos {
@@ -230,29 +234,37 @@ type StatusMessage struct {
 
 type prettyStatusWriter struct{}
 
-func (psw *prettyStatusWriter) Write(p []byte) (n int, err error) {
-	n = len(p)
-	if n == 0 {
-		return
+func (psw prettyStatusWriter) Write(p []byte) (int, error) {
+	var n int
+	in := bytes.NewBuffer(p)
+
+	for {
+		buf, err := in.ReadBytes('\n')
+		n += len(buf)
+
+		if err == io.EOF {
+			return n, nil
+		}
+
+		if err != nil {
+			return n, err
+		}
+
+		var status StatusMessage
+		err = json.Unmarshal(buf, &status)
+
+		if err != nil {
+			return n, err
+		}
+
+		if status.Id != "" {
+			log.Info(status.Status+" - "+status.Id,
+				fmt.Sprintf("%v/%v [%v%%]",
+					status.ProgressDetails.Current, status.ProgressDetails.Total, 0))
+		} else {
+			log.Info("Upload", status.Status)
+		}
 	}
-
-	var status StatusMessage
-
-	err = json.Unmarshal(p, &status)
-
-	if err != nil {
-		return n, err
-	}
-
-	if status.Id != "" {
-		log.Info(status.Status+" - "+status.Id,
-			fmt.Sprintf("%v/%v [%v%%]",
-				status.ProgressDetails.Current, status.ProgressDetails.Total, 0))
-	} else {
-		log.Info("Upload", status.Status)
-	}
-
-	return
 }
 
 func pushImage(client *dclient.Client, username, password, imageRef string) error {
@@ -281,7 +293,7 @@ func pushImage(client *dclient.Client, username, password, imageRef string) erro
 		return err
 	}
 
-	_, err = io.Copy(os.Stdin, readCloser)
+	_, err = io.Copy(prettyStatusWriter{}, readCloser)
 
 	return err
 }
