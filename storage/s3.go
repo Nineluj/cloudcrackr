@@ -128,6 +128,22 @@ func Upload(sess *session.Session, filePath, bucketName, key string) error {
 	return nil
 }
 
+// Download Downloads the file from the remote storage to the local filePath location
+func Download(sess *session.Session, filePath, bucketName, key string) error {
+	downloader := s3manager.NewDownloader(sess)
+	outFile, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+
+	downloader.Download(outFile, &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+
+	return nil
+}
+
 // DeleteObject Deletes a file from the remote storage
 func DeleteObject(sess *session.Session, bucketName, key string) error {
 	client := s3.New(sess)

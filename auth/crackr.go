@@ -4,11 +4,12 @@ import (
 	"cloudcrackr/auth/permissionpolicy"
 	"cloudcrackr/auth/trustpolicy"
 	"cloudcrackr/constants"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"strings"
 )
 
 const (
@@ -59,7 +60,7 @@ func s3ArnFormat(name string) string {
 }
 
 type Credentials struct {
-	AccessKeyId     string
+	AccessKeyID     string
 	SecretAccessKey string
 	SessionToken    string
 }

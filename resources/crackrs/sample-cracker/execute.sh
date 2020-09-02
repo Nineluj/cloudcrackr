@@ -8,7 +8,8 @@ CCR_OUTPUT=$3
 # Set up the environment variables to make the CLI work
 export AWS_ACCESS_KEY_ID=$4
 export AWS_SECRET_ACCESS_KEY=$5
-export AWS_DEFAULT_REGION=$6
+export AWS_SESSION_TOKEN=$6
+export AWS_DEFAULT_REGION=$7
 
 # Essential bash file
 echo "Getting the files from S3"

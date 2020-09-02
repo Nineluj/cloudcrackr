@@ -7,13 +7,14 @@ import (
 	"cloudcrackr/network"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	log "github.com/visionmedia/go-cli-log"
-	"net/url"
-	"strings"
-	"time"
 )
 
 const (
@@ -50,7 +51,7 @@ func getTags() []*ecs.Tag {
 	}
 }
 
-func getDeployId(imageURI string) (string, string, error) {
+func getDeployID(imageURI string) (string, string, error) {
 	uri, err := url.Parse("https://" + imageURI)
 	if err != nil {
 		return "", "", err
@@ -60,11 +61,11 @@ func getDeployId(imageURI string) (string, string, error) {
 
 	// Get the date+time to create a unique identifier for this deployment
 	t := time.Now()
-	deployId := fmt.Sprintf("%d%02d%02dT%02d%02d%02d",
+	deployID := fmt.Sprintf("%d%02d%02dT%02d%02d%02d",
 		t.Year(), t.Month(), t.Day(),
 		t.Hour(), t.Minute(), t.Second())
 
-	return deployId + "-" + parts[0][1:], parts[0][1:], nil
+	return deployID + "-" + parts[0][1:], parts[0][1:], nil
 }
 
 func CreateCluster(sess *session.Session, clusterName string) error {
@@ -124,7 +125,7 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 	useGpu bool) error {
 	client := ecs.New(sess)
 
-	deployId, imageName, err := getDeployId(imageURI)
+	deployID, imageName, err := getDeployID(imageURI)
 	if err != nil {
 		return err
 	}
@@ -142,7 +143,7 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 	}
 
 	// Get the s3 locations for the execute script
-	s3Targets := getS3Targets(bucketName, dictionary, hash, ProcPrefix+deployId)
+	s3Targets := getS3Targets(bucketName, dictionary, hash, ProcPrefix+deployID)
 
 	// Get the IAM role arn for the task
 	ecsTaskRoleArn, err := auth.GetECSRoleArn(sess)
@@ -157,12 +158,12 @@ func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, d
 		return err
 	}
 
-	taskArn, err := registerTask(client, ecsTaskRoleArn, imageURI, deployId, imageName, s3Targets, credentials, useGpu)
+	taskArn, err := registerTask(client, ecsTaskRoleArn, imageURI, deployID, imageName, s3Targets, credentials, useGpu)
 	if err != nil {
 		return err
 	}
 
-	err = runTask(client, clusterArn, taskArn, subnetArn, deployId)
+	err = runTask(client, clusterArn, taskArn, subnetArn, deployID)
 	if err != nil {
 		return err
 	}
@@ -189,7 +190,7 @@ func getS3Targets(bucketName, dictionary, hash, output string) *S3Targets {
 	}
 }
 
-func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) error {
+func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployID string) error {
 	subnetName := strings.SplitN(subnetArn, "/", 2)
 
 	input := &ecs.RunTaskInput{
@@ -199,7 +200,7 @@ func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) e
 		TaskDefinition: aws.String(taskArn),
 		Count:          aws.Int64(1),
 		LaunchType:     aws.String(ecs.LaunchTypeFargate),
-		ReferenceId:    aws.String(deployId),
+		ReferenceId:    aws.String(deployID),
 
 		// Not doing anything with the VPC but need to set this up in order
 		// to run a Fargate container
@@ -232,15 +233,17 @@ func runTask(client *ecs.ECS, clusterArn, taskArn, subnetArn, deployId string) e
 	return nil
 }
 
-func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName string,
+func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployID, imageName string,
 	s3Target *S3Targets, credentials *auth.Credentials, _ bool) (string, error) {
-
+	// TODO: Pass region
 	commandArguments := []*string{
 		// first three arguments for s3
 		&s3Target.dictionaryPath, &s3Target.hashPath, &s3Target.outputPath,
 		// next three are AWS credentials so that the container can use the aws CLI
 		// with limited permissions
-		&credentials.AccessKeyId, &credentials.SecretAccessKey, &credentials.SessionToken,
+		&credentials.AccessKeyID, &credentials.SecretAccessKey, &credentials.SessionToken,
+		// region to use
+		client.Config.Region,
 	}
 
 	input := &ecs.RegisterTaskDefinitionInput{
@@ -264,7 +267,7 @@ func registerTask(client *ecs.ECS, ecsTaskRoleArn, imageURI, deployId, imageName
 
 				// -- Main params
 				Image: aws.String(imageURI),
-				Name:  aws.String(deployId),
+				Name:  aws.String(deployID),
 
 				// (not implemented yet) Define GPU usage here
 				//ResourceRequirements: resourceReqs,
