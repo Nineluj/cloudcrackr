@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	TagLookupTimeout = 10
+	TagLookupTimeout = 5
 )
 
 const (

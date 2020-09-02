@@ -42,7 +42,7 @@ var crackCmd = &cobra.Command{
 			HashPrefix+hash,
 			useGpu,
 		)
-	},
+	}
 }
 
 func crack(sess *session.Session, clusterName, imageName, bucketName, dictionary, hash string, useGpu bool) error {
@@ -62,7 +62,7 @@ func crack(sess *session.Session, clusterName, imageName, bucketName, dictionary
 	err = compute.DeployContainer(sess, clusterName, imageURI, bucketName, dictionary, hash, useGpu)
 	if err != nil {
 		return err
-	}
+}
 
 	return nil
 }

@@ -1,17 +1,18 @@
-// Provides functions for interacting with AWS storage
+// Package storage provides functions for interacting with AWS storage
 package storage
 
 import (
 	"cloudcrackr/cmd/utility"
+	"os"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	log "github.com/visionmedia/go-cli-log"
-	"os"
 )
 
-// Initiates the storage on AWS that cloudcrackr can use
+// CreateBucket Initiates the storage on AWS that cloudcrackr can use
 func CreateBucket(sess *session.Session, bucketName string) error {
 	client := s3.New(sess)
 
@@ -80,7 +81,7 @@ func DeleteBucket(sess *session.Session, bucketName string) error {
 	return nil
 }
 
-// Lists the files available with the given prefix.
+// ListFiles lists the files available with the given prefix.
 // Useful to retrieve only the password or hash files
 func ListFiles(sess *session.Session, bucketName, prefix string) ([]*s3.Object, error) {
 	client := s3.New(sess)
@@ -150,6 +151,7 @@ func stat(client *s3.S3, bucketName, key string, errChan chan<- error) {
 	errChan <- err
 }
 
+// Stat checks if the given file is present in storage
 func Stat(sess *session.Session, bucketName, key string) error {
 	client := s3.New(sess)
 	errChan := make(chan error)
@@ -158,6 +160,7 @@ func Stat(sess *session.Session, bucketName, key string) error {
 	return <-errChan
 }
 
+// StatMultiple checks the existance of multiple files at once
 func StatMultiple(sess *session.Session, bucketName string, keyList ...string) error {
 	keysLen := len(keyList)
 	client := s3.New(sess)
