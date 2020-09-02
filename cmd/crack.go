@@ -4,9 +4,10 @@ import (
 	"cloudcrackr/compute"
 	"cloudcrackr/repository"
 	"cloudcrackr/storage"
+	"path/filepath"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/spf13/cobra"
-	"path/filepath"
 )
 
 var (
@@ -42,7 +43,7 @@ var crackCmd = &cobra.Command{
 			HashPrefix+hash,
 			useGpu,
 		)
-	}
+	},
 }
 
 func crack(sess *session.Session, clusterName, imageName, bucketName, dictionary, hash string, useGpu bool) error {
@@ -62,7 +63,7 @@ func crack(sess *session.Session, clusterName, imageName, bucketName, dictionary
 	err = compute.DeployContainer(sess, clusterName, imageURI, bucketName, dictionary, hash, useGpu)
 	if err != nil {
 		return err
-}
+	}
 
 	return nil
 }

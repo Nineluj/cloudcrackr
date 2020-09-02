@@ -28,14 +28,16 @@ const (
 	allocatedVCpus = ".25 vCPU"
 )
 
-const (
-	ClusterNotFoundError         = "couldn't find cluster"
-	WrongTaskDeregistrationError = "wrong task was de-registered"
+var (
+	// ErrorClusterNotFound when ECS cluster couldn't be found
+	ErrorClusterNotFound = errors.New("couldn't find cluster")
+	// ErrorWrongTaskDeregistration when task deregistration ID doesn't match the requested deletee's task ID
+	ErrorWrongTaskDeregistration = errors.New("wrong task was de-registered")
 )
 
 var (
 	// Settings that need to be enabled to allow tag forwarding to work properly
-	EnabledSettings = [...]string{
+	enabledSettings = [...]string{
 		ecs.SettingNameServiceLongArnFormat,
 		ecs.SettingNameTaskLongArnFormat,
 		ecs.SettingNameContainerInstanceLongArnFormat,
@@ -73,7 +75,7 @@ func CreateCluster(sess *session.Session, clusterName string) error {
 
 	// Settings need to be set to allow tag propagation with ECS.
 	// This only needs to be done once per account per region (once for cloudcrackr)
-	for _, setting := range EnabledSettings {
+	for _, setting := range enabledSettings {
 		_, err := client.PutAccountSetting(&ecs.PutAccountSettingInput{
 			Name:  aws.String(setting),
 			Value: aws.String("enabled"),
@@ -114,13 +116,13 @@ func getClusterArn(client *ecs.ECS, clusterName string) (string, error) {
 	}
 
 	if len(result.Clusters) == 0 {
-		return "", errors.New(ClusterNotFoundError)
+		return "", ErrorClusterNotFound
 	}
 
 	return *result.Clusters[0].ClusterArn, nil
 }
 
-// Deploys the image onto an ECS managed container
+// DeployContainer deploys the image onto an ECS managed container
 func DeployContainer(sess *session.Session, clusterName, imageURI, bucketName, dictionary, hash string,
 	useGpu bool) error {
 	client := ecs.New(sess)
@@ -306,7 +308,7 @@ func deregisterTask(client *ecs.ECS, taskArn string) error {
 	}
 
 	if taskArn != *result.TaskDefinition.TaskDefinitionArn {
-		return errors.New(WrongTaskDeregistrationError)
+		return ErrorWrongTaskDeregistration
 	}
 
 	return nil

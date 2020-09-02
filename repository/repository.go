@@ -10,26 +10,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	log "github.com/visionmedia/go-cli-log"
-	"io"
-	"io/ioutil"
-	"strings"
-	"time"
 )
 
 const (
 	TagLookupTimeout = 5
 )
 
-const (
-	ImageNotFoundError           = "couldn't find imageName"
-	ECRCredentialsRetrievalError = "couldn't retrieve credentials for ECR"
-	ECRURINoHttpsPrefixError     = "expected ECR endpoint to contain https prefix"
+var (
+	// ErrorImageNotFound is when the image name isn't found in the repository
+	ErrorImageNotFound = errors.New("couldn't find imageName")
+	// ErrorECRCredentialsRetrieval is when the credits for accessing ECR cannot be retrieved
+	ErrorECRCredentialsRetrieval = errors.New("couldn't retrieve credentials for ECR")
+	// ErrorECRURIMalformed is when the ECR URI is malformatted, doesn't start with https
+	ErrorECRURIMalformed = errors.New("expected ECR endpoint to contain https prefix")
 )
 
 func getTags() []*ecr.Tag {
@@ -70,7 +74,7 @@ func GetImageURI(sess *session.Session, imageName string) (string, error) {
 	}
 
 	if len(result.ImageDetails) == 0 {
-		return "", errors.New(ImageNotFoundError)
+		return "", ErrorImageNotFound
 	}
 
 	domain, _, err := getECRDetails(sess)
@@ -199,13 +203,13 @@ func getECRDetails(sess *session.Session) (string, string, error) {
 	}
 
 	if len(result.AuthorizationData) == 0 {
-		return "", "", errors.New(ECRCredentialsRetrievalError)
+		return "", "", ErrorECRCredentialsRetrieval
 	}
 
 	endpoint := *result.AuthorizationData[0].ProxyEndpoint
 	endpointTrimmed := strings.TrimPrefix(endpoint, "https://")
 	if len(endpoint) == len(endpointTrimmed) {
-		return "", "", errors.New(ECRURINoHttpsPrefixError)
+		return "", "", ErrorECRURIMalformed
 	}
 
 	authToken := result.AuthorizationData[0].AuthorizationToken

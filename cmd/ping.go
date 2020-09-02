@@ -3,8 +3,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
 	"strconv"
+
+	"github.com/spf13/cobra"
 )
 
 // pingCmd represents the ping command

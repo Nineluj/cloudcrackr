@@ -2,13 +2,15 @@ package network
 
 import (
 	"errors"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-const (
-	NoDefaultSubnetError = "found no default subnet to use"
+var (
+	// ErrorNoDefaultSubnet is when no default subnet is found
+	ErrorNoDefaultSubnet = errors.New("found no default subnet to use")
 )
 
 func GetDefaultSubnetArn(sess *session.Session) (string, error) {
@@ -43,7 +45,7 @@ func GetDefaultSubnetArn(sess *session.Session) (string, error) {
 
 	// it's probably fine to have more than 1 subnet found
 	if len(subnets) == 0 {
-		return "", errors.New(NoDefaultSubnetError)
+		return "", ErrorNoDefaultSubnet
 	}
 
 	return *subnets[0].SubnetArn, nil

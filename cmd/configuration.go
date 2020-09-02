@@ -4,16 +4,19 @@ import (
 	"cloudcrackr/cmd/utility"
 	"errors"
 	"fmt"
+	"os"
+	"reflect"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	log "github.com/visionmedia/go-cli-log"
-	"os"
-	"reflect"
 )
 
-const (
-	UserCreateConfigurationDeniedError = "user did not want to create config"
-	FixedConfigCommandError            = "command doesn't work with custom config path"
+var (
+	// ErrorUserCreateConfigurationDenied is called when the user refuses to create a configuration
+	ErrorUserCreateConfigurationDenied = errors.New("user did not want to create config")
+	// ErrorFixedConfigCommand is called when a command that uses the configuration file is called with a custom configuration path
+	ErrorFixedConfigCommand = errors.New("command doesn't work with custom config path")
 )
 
 // Config declared this way to force the presence of these values at runtime
@@ -74,7 +77,7 @@ func generateConfig() error {
 	confirm := utility.GetBoolean("Do you want to create a config now?")
 
 	if !confirm {
-		return errors.New(UserCreateConfigurationDeniedError)
+		return ErrorUserCreateConfigurationDenied
 	}
 
 	// Necessary evil of reflect to make the config logic more elegant
@@ -124,7 +127,7 @@ func getMissingConf() bool {
 
 func configWhere(c *cobra.Command, _ []string) error {
 	if c.Flag("config").Value.String() != "" {
-		return errors.New(FixedConfigCommandError)
+		return ErrorFixedConfigCommand
 	}
 
 	fmt.Println(defaultCfgPath)
@@ -133,7 +136,7 @@ func configWhere(c *cobra.Command, _ []string) error {
 
 func configClean(c *cobra.Command, _ []string) error {
 	if c.Flag("config").Value.String() != "" {
-		return errors.New(FixedConfigCommandError)
+		return ErrorFixedConfigCommand
 	}
 
 	err := os.Remove(defaultCfgPath)
