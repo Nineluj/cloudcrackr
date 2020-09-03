@@ -3,11 +3,13 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"regexp"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/spf13/cobra"
 	log "github.com/visionmedia/go-cli-log"
-	"os"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
@@ -19,6 +21,10 @@ var awsSession *session.Session
 var configFileName = ".cloudcrackr"
 var cfgFile string
 var defaultCfgPath string
+
+const (
+	mismatchedArgsRegexp = "accepts.*[0-9].*received.*[0-9]"
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -71,6 +77,13 @@ func Execute() {
 		os.Exit(0)
 	} else {
 		log.Error(err)
+
+		// Need a hack here since cobra creates argument mismatch errors at runtime
+		mismatchedArgs, _ := regexp.Compile(mismatchedArgsRegexp)
+		if mismatchedArgs.MatchString(err.Error()) {
+			rootCmd.Usage()
+		}
+
 		os.Exit(-1)
 	}
 }
