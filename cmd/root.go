@@ -4,7 +4,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -22,23 +21,20 @@ var configFileName = ".cloudcrackr"
 var cfgFile string
 var defaultCfgPath string
 
-const (
-	mismatchedArgsRegexp = "accepts.*[0-9].*received.*[0-9]"
-)
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "cloudcrackr",
-	Short: "Facilitate password cracking using AWS",
+	Version: "0.1",
+	Use:     "cloudcrackr",
+	Short:   "Facilitate password cracking using AWS",
 	Long: `Cloudcrackr is a CLI based application for cracking password hashes
 on the cloud using AWS and Docker.`,
 	// TODO: Add more information here
 	PersistentPreRunE: preRun,
-	SilenceUsage:      true,
+	SilenceUsage:      false,
 	SilenceErrors:     true,
 }
 
-func preRun(_ *cobra.Command, _ []string) error {
+func preRun(cmd *cobra.Command, args []string) error {
 	err := setupAwsSession()
 	if err != nil {
 		return err
@@ -47,6 +43,13 @@ func preRun(_ *cobra.Command, _ []string) error {
 	err = unmarshalConfig()
 	if err != nil {
 		return err
+	}
+
+	// Bit of a dirty hack necessary due to how cobra works
+	// we only want to show the usage when there is a mismatch
+	// in # of arguments. Setting silenceUsage will hide it.
+	if err = cmd.Args(cmd, args); err == nil {
+		cmd.SilenceUsage = true
 	}
 
 	return nil
@@ -77,13 +80,6 @@ func Execute() {
 		os.Exit(0)
 	} else {
 		log.Error(err)
-
-		// Need a hack here since cobra creates argument mismatch errors at runtime
-		mismatchedArgs, _ := regexp.Compile(mismatchedArgsRegexp)
-		if mismatchedArgs.MatchString(err.Error()) {
-			rootCmd.Usage()
-		}
-
 		os.Exit(-1)
 	}
 }

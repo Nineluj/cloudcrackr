@@ -31,7 +31,7 @@ func ping(_ *cobra.Command, args []string) error {
 		fmt.Println("Pong!")
 	}
 
-	return nil
+	return errors.New("This evil command produces evil errors")
 }
 
 func init() {
