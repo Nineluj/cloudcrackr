@@ -261,10 +261,15 @@ func (psw prettyStatusWriter) Write(p []byte) (int, error) {
 			return n, err
 		}
 
-		if status.Id != "" {
+		if len(status.Status) == 0 {
+			continue
+		}
+		if status.Id != "" && status.ProgressDetails.Total != 0 {
 			log.Info(status.Status+" - "+status.Id,
-				fmt.Sprintf("%v/%v [%v%%]",
-					status.ProgressDetails.Current, status.ProgressDetails.Total, 0))
+				"%v/%v [%v%%]",
+				status.ProgressDetails.Current,
+				status.ProgressDetails.Total,
+				int(100*status.ProgressDetails.Current/status.ProgressDetails.Total))
 		} else {
 			log.Info("Upload", status.Status)
 		}
@@ -297,6 +302,7 @@ func pushImage(client *dclient.Client, username, password, imageRef string) erro
 		return err
 	}
 
+	// TODO: find better way to notify user of error
 	_, err = io.Copy(prettyStatusWriter{}, readCloser)
 
 	return err
