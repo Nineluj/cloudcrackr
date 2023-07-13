@@ -13,9 +13,13 @@ Upon running the CLI you will be prompted to configure the program. A configurat
 created at `~/.cloudcrackr.yaml`. Additionally, a custom configuration file can be using
 by using the `--config` flag. See the `config` command for further information.
 
-## Running - WIP
-After the first release there will be more instructions on how to run the program.
+## Installation
+Run `go build` and then move the executable to `/usr/local/bin/` or `~/.local/bin`.
 
+## Running
+```
+cloudcrackr crack <image> <password_file> <file>
+```
 
 ## Rationale
 For a security classes that I took as an undergraduate,
@@ -26,7 +30,3 @@ find themselves needing a more accessible option.
 
 I also hope that this project can promote a better understanding of password cracking procedures
 and encourage better practices in selecting passwords. 
-
-## Contributing / Help
-This project is in active development. Feel free to open up an issue or
-contact me if you have any questions or want to get involved.
